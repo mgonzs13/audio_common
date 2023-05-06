@@ -5,6 +5,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from audio_common_msgs.msg import AudioStamped
+from audio_common_msgs.srv import PlayAudio
 
 
 class AudioPlayerNode(Node):
@@ -23,6 +24,9 @@ class AudioPlayerNode(Node):
         qos_profile.depth = 200
         self.sub = self.create_subscription(
             AudioStamped, "audio", self.audio_callback, qos_profile)
+
+        self.player_srv = self.create_service(
+            PlayAudio, "play_audio", self.play_audio_srv)
 
     def destroy_node(self) -> bool:
         self.audio.terminate()
@@ -49,6 +53,14 @@ class AudioPlayerNode(Node):
 
         stream = self.stream_dict[stream_key]
         stream.write(data)
+
+    def play_audio_srv(
+        self,
+            req: PlayAudio.Request,
+            res: PlayAudio.Response
+    ) -> PlayAudio.Response:
+        self.audio_callback(req.audio)
+        return res
 
 
 def main(args=None):

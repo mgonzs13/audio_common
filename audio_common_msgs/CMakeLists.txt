@@ -10,6 +10,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/AudioInfo.msg"
   "msg/Audio.msg"
   "msg/AudioStamped.msg"
+  "srv/PlayAudio.srv"
   "action/TTS.action"
   DEPENDENCIES std_msgs
 )

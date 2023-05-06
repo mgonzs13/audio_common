@@ -9,13 +9,13 @@ import pyaudio
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.action.server import ServerGoalHandle
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
 from audio_common_msgs.msg import AudioStamped
+from audio_common_msgs.srv import PlayAudio
 from audio_common_msgs.action import TTS
 
 
@@ -36,10 +36,8 @@ class AudioCapturerNode(Node):
 
         self.espeak_cmd = "espeak -v{} -s{} -a{} -w {} '{}'"
 
-        qos_profile = qos_profile_sensor_data
-        qos_profile.depth = 200
-        self.audio_pub = self.create_publisher(
-            AudioStamped, "audio", qos_profile)
+        self.player_client = self.create_client(
+            PlayAudio, "play_audio", callback_group=ReentrantCallbackGroup())
 
         # action server
         self._goal_handle = None
@@ -108,7 +106,11 @@ class AudioCapturerNode(Node):
             msg.audio.info.channels = wf.getnchannels()
             msg.audio.info.chunk = self.chunk
             msg.audio.info.rate = wf.getframerate()
-            self.audio_pub.publish(msg)
+
+            request = PlayAudio.Request()
+            request.audio = msg
+            self.player_client.wait_for_service()
+            self.player_client.call(request)
 
             data = wf.readframes(self.chunk)
 
