@@ -1,6 +1,6 @@
 # audio_capture
 
-This repositiory provides a set of ROS 2 for audio.
+This repositiory provides a set of ROS 2 packages for audio.
 
 ## Installation
 
@@ -17,9 +17,23 @@ $ colcon build
 ### Audio Capturer/Player
 
 ```shell
-$ ros2 run audio_capture audio_capturer
+$ ros2 run audio_common audio_capturer_node
 ```
 
 ```shell
-$ ros2 run audio_capture audio_player
+$ ros2 run audio_common audio_player_node
+```
+
+### TTS
+
+```shell
+$ ros2 run audio_common tts_node
+```
+
+```shell
+$ ros2 run audio_common audio_player_node
+```
+
+```shell
+$ ros2 action send_goal /tts audio_common_msgs/action/TTS "{'text': 'Hello World', 'rate': 0.5, 'volume': 0.5}"
 ```
