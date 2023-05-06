@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 import pyaudio
+import numpy as np
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+
 from audio_common_msgs.msg import AudioStamped
 from audio_common_msgs.srv import PlayAudio
 
@@ -17,13 +20,18 @@ class AudioPlayerNode(Node):
         self.channels = self.get_parameter(
             "channels").get_parameter_value().integer_value
 
+        self.declare_parameter("device", -1)
+        self.device = self.get_parameter(
+            "device").get_parameter_value().integer_value
+
+        if self.device < 0:
+            self.device = None
+
         self.audio = pyaudio.PyAudio()
         self.stream_dict = {}
 
-        qos_profile = qos_profile_sensor_data
-        qos_profile.depth = 200
         self.sub = self.create_subscription(
-            AudioStamped, "audio", self.audio_callback, qos_profile)
+            AudioStamped, "audio", self.audio_callback, qos_profile_sensor_data)
 
         self.player_srv = self.create_service(
             PlayAudio, "play_audio", self.play_audio_srv)
@@ -45,10 +53,25 @@ class AudioPlayerNode(Node):
                 format=msg.audio.info.format,
                 channels=self.channels,
                 rate=msg.audio.info.rate,
-                output=True
+                output=True,
+                output_device_index=self.device
             )
 
-        data = [int(ele) for ele in msg.audio.data]
+        data = list(msg.audio.data)
+
+        if msg.audio.info.channels != self.channels:
+            data = np.array(data)
+
+            if msg.audio.info.channels == 1 and self.channels == 2:
+                # mono to stereo
+                data = np.repeat(data, 2)
+
+            elif msg.audio.info.channels == 2 and self.channels == 1:
+                # stereo to mono
+                data = np.mean(data.reshape(-1, 2), axis=1).astype(int)
+
+            data = data.tolist()
+
         data = bytes(data)
 
         stream = self.stream_dict[stream_key]

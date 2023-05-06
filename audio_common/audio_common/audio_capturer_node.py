@@ -17,6 +17,7 @@ class AudioCapturerNode(Node):
             ("channels", 1),
             ("rate", 16000),
             ("chunk", 4096),
+            ("device", -1),
             ("frame_id", "")
         ])
 
@@ -28,20 +29,26 @@ class AudioCapturerNode(Node):
             "rate").get_parameter_value().integer_value
         self.chunk = self.get_parameter(
             "chunk").get_parameter_value().integer_value
+        device = self.get_parameter(
+            "device").get_parameter_value().integer_value
         self.frame_id = self.get_parameter(
             "frame_id").get_parameter_value().string_value
 
-        self.audio = pyaudio.PyAudio()
-        self.stream = self.audio.open(format=self.format,
-                                      channels=self.channels,
-                                      rate=self.rate,
-                                      input=True,
-                                      frames_per_buffer=self.chunk)
+        if device < 0:
+            device = None
 
-        qos_profile = qos_profile_sensor_data
-        qos_profile.depth = 200
+        self.audio = pyaudio.PyAudio()
+        self.stream = self.audio.open(
+            format=self.format,
+            channels=self.channels,
+            rate=self.rate,
+            input=True,
+            frames_per_buffer=self.chunk,
+            input_device_index=device
+        )
+
         self.audio_pub = self.create_publisher(
-            AudioStamped, "audio", qos_profile)
+            AudioStamped, "audio", qos_profile_sensor_data)
         self.create_timer(self.chunk / self.rate, self.pyaudio_cb)
 
     def destroy_node(self) -> bool:
