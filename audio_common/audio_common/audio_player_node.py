@@ -57,11 +57,9 @@ class AudioPlayerNode(Node):
                 output_device_index=self.device
             )
 
-        data = list(msg.audio.data)
+        data = np.frombuffer(msg.audio.data, np.uint16)
 
         if msg.audio.info.channels != self.channels:
-            data = np.array(data)
-
             if msg.audio.info.channels == 1 and self.channels == 2:
                 # mono to stereo
                 data = np.repeat(data, 2)
@@ -70,9 +68,7 @@ class AudioPlayerNode(Node):
                 # stereo to mono
                 data = np.mean(data.reshape(-1, 2), axis=1).astype(int)
 
-            data = data.tolist()
-
-        data = bytes(data)
+        data = data.tobytes()
 
         stream = self.stream_dict[stream_key]
         stream.write(data)

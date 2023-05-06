@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 import pyaudio
+import numpy as np
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+
 from audio_common_msgs.msg import AudioStamped
 
 
@@ -49,34 +52,33 @@ class AudioCapturerNode(Node):
 
         self.audio_pub = self.create_publisher(
             AudioStamped, "audio", qos_profile_sensor_data)
-        self.create_timer(self.chunk / self.rate, self.pyaudio_cb)
 
     def destroy_node(self) -> bool:
         self.stream.close()
         self.audio.terminate()
         return super().destroy_node()
 
-    def pyaudio_cb(self) -> None:
+    def work(self) -> None:
+        while rclpy.ok:
+            data = self.stream.read(self.chunk)
 
-        data = self.stream.read(self.chunk)
+            msg = AudioStamped()
+            msg.header.frame_id = self.frame_id
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.audio.data = np.frombuffer(data, dtype=np.uint16).tolist()
 
-        msg = AudioStamped()
-        msg.header.frame_id = self.frame_id
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.audio.data = list(data)
+            msg.audio.info.format = self.format
+            msg.audio.info.channels = self.channels
+            msg.audio.info.chunk = self.chunk
+            msg.audio.info.rate = self.rate
 
-        msg.audio.info.format = self.format
-        msg.audio.info.channels = self.channels
-        msg.audio.info.chunk = self.chunk
-        msg.audio.info.rate = self.rate
-
-        self.audio_pub.publish(msg)
+            self.audio_pub.publish(msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = AudioCapturerNode()
-    rclpy.spin(node)
+    node.work()
     node.destroy_node()
     rclpy.shutdown()
 
