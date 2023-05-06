@@ -5,11 +5,11 @@ This repositiory provides a set of ROS 2 packages for audio.
 ## Installation
 
 ```shell
-$ sudo apt install espeak -y
 $ cd ~/ros2_ws/src
 $ git clone --recurse-submodules https://github.com/mgonzs13/audio_common.git
 $ pip3 install -r audio_common/requirements.txt
 $ cd ~/ros2_ws
+$ rosdep install --from-paths src --ignore-src -r -y
 $ colcon build
 ```
 
