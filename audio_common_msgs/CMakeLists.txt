@@ -7,6 +7,7 @@ find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/AudioData.msg"
   "msg/AudioInfo.msg"
   "msg/Audio.msg"
   "msg/AudioStamped.msg"

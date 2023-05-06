@@ -6,6 +6,7 @@ import wave
 import tempfile
 import threading
 import pyaudio
+import numpy as np
 
 import rclpy
 from rclpy.node import Node
@@ -73,6 +74,15 @@ class AudioCapturerNode(Node):
 
     def execute_callback(self, goal_handle: ServerGoalHandle) -> TTS.Result:
 
+        pyaudio_to_np = {
+            pyaudio.paFloat32: np.float32,
+            pyaudio.paInt32: np.int32,
+            pyaudio.paInt24: np.int32,
+            pyaudio.paInt16: np.int16,
+            pyaudio.paInt8: np.int8,
+            pyaudio.paUInt8: np.uint8
+        }
+
         text = goal_handle.request.text
         language = goal_handle.request.language
         rate = goal_handle.request.rate * 350
@@ -87,6 +97,7 @@ class AudioCapturerNode(Node):
         audio_file.seek(0)
         wf = wave.open(audio_file.name, "rb")
         audio_file.close()
+        audio_format = pyaudio.get_format_from_width(wf.getsampwidth())
 
         data = wf.readframes(self.chunk)
         while data:
@@ -97,10 +108,26 @@ class AudioCapturerNode(Node):
                 goal_handle.canceled()
                 return TTS.Result()
 
+            data = np.frombuffer(
+                data, dtype=pyaudio_to_np[audio_format]).tolist()
+
             msg = AudioStamped()
             msg.header.frame_id = self.frame_id
             msg.header.stamp = self.get_clock().now().to_msg()
-            msg.audio.data = list(data)
+
+            if audio_format == pyaudio.paFloat32:
+                msg.audio.audio_data.float32_data = data
+            elif audio_format == pyaudio.paInt32:
+                msg.audio.audio_data.int32_data = data
+            elif audio_format == pyaudio.paInt24:
+                msg.audio.audio_data.int24_data = data
+            elif audio_format == pyaudio.paInt16:
+                msg.audio.audio_data.int16_data = data
+            elif audio_format == pyaudio.paInt8:
+                msg.audio.audio_data.int8_data = data
+            elif audio_format == pyaudio.paUInt8:
+                msg.audio.audio_data.uint8_data = data
+
             msg.audio.info.format = pyaudio.get_format_from_width(
                 wf.getsampwidth())
             msg.audio.info.channels = wf.getnchannels()

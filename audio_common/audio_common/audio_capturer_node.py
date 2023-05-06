@@ -59,13 +59,40 @@ class AudioCapturerNode(Node):
         return super().destroy_node()
 
     def work(self) -> None:
+
+        pyaudio_to_np = {
+            pyaudio.paFloat32: np.float32,
+            pyaudio.paInt32: np.int32,
+            pyaudio.paInt24: np.int32,
+            pyaudio.paInt16: np.int16,
+            pyaudio.paInt8: np.int8,
+            pyaudio.paUInt8: np.uint8
+        }
+
         while rclpy.ok:
             data = self.stream.read(self.chunk)
+            data = np.frombuffer(
+                data, dtype=pyaudio_to_np[self.format]).tolist()
 
             msg = AudioStamped()
             msg.header.frame_id = self.frame_id
             msg.header.stamp = self.get_clock().now().to_msg()
-            msg.audio.data = np.frombuffer(data, dtype=np.uint16).tolist()
+
+            if self.format == pyaudio.paFloat32:
+                msg.audio.audio_data.float32_data = data
+            elif self.format == pyaudio.paInt32:
+                msg.audio.audio_data.int32_data = data
+            elif self.format == pyaudio.paInt24:
+                msg.audio.audio_data.int24_data = data
+            elif self.format == pyaudio.paInt16:
+                msg.audio.audio_data.int16_data = data
+            elif self.format == pyaudio.paInt8:
+                msg.audio.audio_data.int8_data = data
+            elif self.format == pyaudio.paUInt8:
+                msg.audio.audio_data.uint8_data = data
+            else:
+                self.get_logger().error(f"Format {self.format} unknown")
+                return
 
             msg.audio.info.format = self.format
             msg.audio.info.channels = self.channels
