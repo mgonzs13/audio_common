@@ -12,7 +12,7 @@ $ cd ~/ros2_ws
 $ colcon build
 ```
 
-## Demo
+## Demos
 
 ### Audio Capturer/Player
 

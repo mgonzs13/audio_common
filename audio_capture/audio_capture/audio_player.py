@@ -4,7 +4,7 @@ import pyaudio
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-from audio_common_msgs.msg import AudioStamped
+from audio_common_msgs.msg import AudioDataStamped
 
 
 class AudioPlayerNode(Node):
@@ -13,12 +13,14 @@ class AudioPlayerNode(Node):
         super().__init__("audio_player_node")
 
         self.declare_parameters("", [
+            ("format", pyaudio.paInt16),
             ("channels", 1),
             ("rate", 16000),
             ("chunk", 4096)
         ])
 
-        self.format = pyaudio.paInt16
+        self.format = self.get_parameter(
+            "format").get_parameter_value().integer_value
         self.channels = self.get_parameter(
             "channels").get_parameter_value().integer_value
         self.rate = self.get_parameter(
@@ -34,15 +36,15 @@ class AudioPlayerNode(Node):
                                       frames_per_buffer=self.chunk)
 
         self.sub = self.create_subscription(
-            AudioStamped, "audio", self.audio_callback, qos_profile_sensor_data)
+            AudioDataStamped, "audio", self.audio_callback, qos_profile_sensor_data)
 
     def destroy_node(self) -> bool:
         self.stream.close()
         self.audio.terminate()
         return super().destroy_node()
 
-    def audio_callback(self, msg: AudioStamped):
-        data = [int(ele) for ele in msg.audio.audio.data]
+    def audio_callback(self, msg: AudioDataStamped):
+        data = [int(ele) for ele in msg.audio.data]
         data = bytes(data)
         self.stream.write(data, self.chunk)
 
