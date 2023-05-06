@@ -11,6 +11,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.action.server import ServerGoalHandle
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
@@ -20,7 +21,7 @@ from audio_common_msgs.action import TTS
 
 class AudioCapturerNode(Node):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("tts_node")
 
         self.declare_parameters("", [
@@ -35,8 +36,10 @@ class AudioCapturerNode(Node):
 
         self.espeak_cmd = "espeak -v{} -s{} -a{} -w {} '{}'"
 
+        qos_profile = qos_profile_sensor_data
+        qos_profile.depth = 200
         self.audio_pub = self.create_publisher(
-            AudioStamped, "audio", qos_profile_sensor_data)
+            AudioStamped, "audio", qos_profile)
 
         # action server
         self._goal_handle = None
@@ -53,24 +56,24 @@ class AudioCapturerNode(Node):
 
         self.get_logger().info("TTS node started")
 
-    def destroy_node(self):
+    def destroy_node(self) -> bool:
         self._action_server.destroy()
         super().destroy_node()
 
-    def goal_callback(self, goal_request):
+    def goal_callback(self, goal_request: ServerGoalHandle) -> int:
         return GoalResponse.ACCEPT
 
-    def handle_accepted_callback(self, goal_handle):
+    def handle_accepted_callback(self, goal_handle: ServerGoalHandle) -> None:
         with self._goal_lock:
             if self._goal_handle is not None and self._goal_handle.is_active:
                 self._goal_handle.abort()
             self._goal_handle = goal_handle
         goal_handle.execute()
 
-    def cancel_callback(self, goal):
+    def cancel_callback(self, goal_handle: ServerGoalHandle) -> None:
         return CancelResponse.ACCEPT
 
-    def execute_callback(self, goal_handle):
+    def execute_callback(self, goal_handle: ServerGoalHandle) -> TTS.Result:
 
         text = goal_handle.request.text
         language = goal_handle.request.language
@@ -81,13 +84,13 @@ class AudioCapturerNode(Node):
         audio_file = tempfile.NamedTemporaryFile(mode="w+")
         os.system(self.espeak_cmd.format(
             language, rate, volume, audio_file.name, text))
-        audio_file.seek(0)
 
         # pub audio
+        audio_file.seek(0)
         wf = wave.open(audio_file.name, "rb")
+        audio_file.close()
 
         data = wf.readframes(self.chunk)
-
         while data:
             if not goal_handle.is_active:
                 return TTS.Result()

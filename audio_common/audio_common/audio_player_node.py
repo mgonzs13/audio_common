@@ -9,21 +9,20 @@ from audio_common_msgs.msg import AudioStamped
 
 class AudioPlayerNode(Node):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("audio_player_node")
 
-        self.declare_parameters("", [
-            ("channels", 1)
-        ])
-
+        self.declare_parameter("channels", 1)
         self.channels = self.get_parameter(
             "channels").get_parameter_value().integer_value
 
         self.audio = pyaudio.PyAudio()
         self.stream_dict = {}
 
+        qos_profile = qos_profile_sensor_data
+        qos_profile.depth = 200
         self.sub = self.create_subscription(
-            AudioStamped, "audio", self.audio_callback, qos_profile_sensor_data)
+            AudioStamped, "audio", self.audio_callback, qos_profile)
 
     def destroy_node(self) -> bool:
         self.audio.terminate()
@@ -33,7 +32,7 @@ class AudioPlayerNode(Node):
 
         return super().destroy_node()
 
-    def audio_callback(self, msg: AudioStamped):
+    def audio_callback(self, msg: AudioStamped) -> None:
 
         stream_key = f"{msg.audio.info.format}_{msg.audio.info.rate}"
 
@@ -45,11 +44,10 @@ class AudioPlayerNode(Node):
                 output=True
             )
 
-        stream = self.stream_dict[stream_key]
-
         data = [int(ele) for ele in msg.audio.data]
         data = bytes(data)
 
+        stream = self.stream_dict[stream_key]
         stream.write(data)
 
 

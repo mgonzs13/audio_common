@@ -9,7 +9,7 @@ from audio_common_msgs.msg import AudioStamped
 
 class AudioCapturerNode(Node):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("audio_capturer_node")
 
         self.declare_parameters("", [
@@ -38,8 +38,10 @@ class AudioCapturerNode(Node):
                                       input=True,
                                       frames_per_buffer=self.chunk)
 
+        qos_profile = qos_profile_sensor_data
+        qos_profile.depth = 200
         self.audio_pub = self.create_publisher(
-            AudioStamped, "audio", qos_profile_sensor_data)
+            AudioStamped, "audio", qos_profile)
         self.create_timer(self.chunk / self.rate, self.pyaudio_cb)
 
     def destroy_node(self) -> bool:
