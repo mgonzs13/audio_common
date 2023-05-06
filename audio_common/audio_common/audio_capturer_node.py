@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 import pyaudio
-import numpy as np
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 
 from audio_common_msgs.msg import AudioStamped
+from audio_common.utils import data_to_msg
 
 
 class AudioCapturerNode(Node):
@@ -60,40 +60,19 @@ class AudioCapturerNode(Node):
 
     def work(self) -> None:
 
-        pyaudio_to_np = {
-            pyaudio.paFloat32: np.float32,
-            pyaudio.paInt32: np.int32,
-            pyaudio.paInt24: np.int32,
-            pyaudio.paInt16: np.int16,
-            pyaudio.paInt8: np.int8,
-            pyaudio.paUInt8: np.uint8
-        }
-
         while rclpy.ok:
             data = self.stream.read(self.chunk)
-            data = np.frombuffer(
-                data, dtype=pyaudio_to_np[self.format]).tolist()
 
             msg = AudioStamped()
             msg.header.frame_id = self.frame_id
             msg.header.stamp = self.get_clock().now().to_msg()
 
-            if self.format == pyaudio.paFloat32:
-                msg.audio.audio_data.float32_data = data
-            elif self.format == pyaudio.paInt32:
-                msg.audio.audio_data.int32_data = data
-            elif self.format == pyaudio.paInt24:
-                msg.audio.audio_data.int24_data = data
-            elif self.format == pyaudio.paInt16:
-                msg.audio.audio_data.int16_data = data
-            elif self.format == pyaudio.paInt8:
-                msg.audio.audio_data.int8_data = data
-            elif self.format == pyaudio.paUInt8:
-                msg.audio.audio_data.uint8_data = data
-            else:
+            audio_data_msg = data_to_msg(data, self.format)
+            if audio_data_msg is None:
                 self.get_logger().error(f"Format {self.format} unknown")
                 return
 
+            msg.audio.audio_data = audio_data_msg
             msg.audio.info.format = self.format
             msg.audio.info.channels = self.channels
             msg.audio.info.chunk = self.chunk

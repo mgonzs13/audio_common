@@ -5,6 +5,8 @@ project(audio_common)
 find_package(ament_cmake REQUIRED)
 
 # Python
+ament_python_install_package(${PROJECT_NAME})
+
 install(PROGRAMS
   audio_common/audio_capturer_node.py
   DESTINATION lib/${PROJECT_NAME}
