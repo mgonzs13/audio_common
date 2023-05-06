@@ -2,7 +2,6 @@
 import pyaudio
 import numpy as np
 from audio_common_msgs.msg import AudioData
-from audio_common_msgs.msg import Audio
 
 pyaudio_to_np = {
     pyaudio.paFloat32: np.float32,
