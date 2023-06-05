@@ -3,9 +3,9 @@
 <package format="3">
   <name>audio_common_msgs</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>audio_common_msgs</description>
   <maintainer email="mgons@unileon.es">Miguel Ángel González Santamarta</maintainer>
-  <license>TODO: License declaration</license>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
