@@ -7,6 +7,7 @@ This repositiory provides a set of ROS 2 packages for audio.
 ```shell
 $ cd ~/ros2_ws/src
 $ git clone --recurse-submodules https://github.com/mgonzs13/audio_common.git
+$ sudo apt install portaudio19-dev
 $ pip3 install -r audio_common/requirements.txt
 $ cd ~/ros2_ws
 $ rosdep install --from-paths src --ignore-src -r -y
