@@ -68,7 +68,7 @@ class AudioCapturerNode(Node):
         self._action_server = ActionServer(
             self,
             TTS,
-            "tts",
+            "say",
             execute_callback=self.execute_callback,
             goal_callback=self.goal_callback,
             handle_accepted_callback=self.handle_accepted_callback,

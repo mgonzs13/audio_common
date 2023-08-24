@@ -37,5 +37,5 @@ $ ros2 run audio_common audio_player_node
 ```
 
 ```shell
-$ ros2 action send_goal /tts audio_common_msgs/action/TTS "{'text': 'Hello World', 'rate': 0.5, 'volume': 0.5}"
+$ ros2 action send_goal /say audio_common_msgs/action/TTS "{'text': 'Hello World', 'rate': 0.5, 'volume': 0.5}"
 ```
