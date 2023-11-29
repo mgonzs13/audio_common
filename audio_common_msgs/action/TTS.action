@@ -1,6 +1,10 @@
 string text
+
+# only for multi-lingual models
 string language "en"
-float32 volume 0.5
-float32 rate 0.5
+
+# only for Coqui Studio models
+float32 speed 1.0
+string emotion "Neutral" # "Neutral", "Happy", "Sad", "Angry", "Dull"
 ---
 ---

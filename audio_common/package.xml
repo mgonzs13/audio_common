@@ -13,7 +13,6 @@
   <test_depend>ament_lint_common</test_depend>
 
   <depend>audio_common_msgs</depend>
-  <depend>espeak</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

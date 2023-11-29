@@ -25,9 +25,10 @@
 
 import os
 import wave
+import pyaudio
 import tempfile
 import threading
-import pyaudio
+from TTS.api import TTS as TtsModel
 
 import rclpy
 from rclpy.node import Node
@@ -49,7 +50,11 @@ class AudioCapturerNode(Node):
 
         self.declare_parameters("", [
             ("chunk", 4096),
-            ("frame_id", "")
+            ("frame_id", ""),
+
+            ("model", "tts_models/en/ljspeech/tacotron2-DDC"),
+            ("speaker_wav", ""),
+            ("device", "cpu")
         ])
 
         self.chunk = self.get_parameter(
@@ -57,7 +62,23 @@ class AudioCapturerNode(Node):
         self.frame_id = self.get_parameter(
             "frame_id").get_parameter_value().string_value
 
-        self.espeak_cmd = "espeak -v{} -s{} -a{} -w {} '{}'"
+        self.model = self.get_parameter(
+            "model").get_parameter_value().string_value
+        self.speaker_wav = self.get_parameter(
+            "speaker_wav").get_parameter_value().string_value
+        self.device = self.get_parameter(
+            "device").get_parameter_value().string_value
+
+        if (
+            not self.speaker_wav or
+            not (
+                os.path.exists(self.speaker_wav) and
+                os.path.isfile(self.speaker_wav)
+            )
+        ):
+            self.speaker_wav = None
+
+        self.tts = TtsModel(self.model).to(self.device)
 
         self.player_client = self.create_client(
             PlayAudio, "play_audio", callback_group=ReentrantCallbackGroup())
@@ -73,7 +94,8 @@ class AudioCapturerNode(Node):
             goal_callback=self.goal_callback,
             handle_accepted_callback=self.handle_accepted_callback,
             cancel_callback=self.cancel_callback,
-            callback_group=ReentrantCallbackGroup())
+            callback_group=ReentrantCallbackGroup()
+        )
 
         self.get_logger().info("TTS node started")
 
@@ -96,15 +118,30 @@ class AudioCapturerNode(Node):
 
     def execute_callback(self, goal_handle: ServerGoalHandle) -> TTS.Result:
 
-        text = goal_handle.request.text
-        language = goal_handle.request.language
-        rate = goal_handle.request.rate * 350
-        volume = goal_handle.request.volume * 200
+        request: TTS.Goal = goal_handle.request
 
-        # create espeak audio file
+        text = request.text
+        language = request.language
+        speed = request.speed
+        emotion = request.emotion
+
+        if not self.tts.is_coqui_studio:
+            speed = None
+            emotion = None
+
+        if not self.tts.is_multi_lingual:
+            language = None
+
+        # create audio file
         audio_file = tempfile.NamedTemporaryFile(mode="w+")
-        os.system(self.espeak_cmd.format(
-            language, rate, volume, audio_file.name, text))
+        self.tts.tts_to_file(
+            text,
+            speaker_wav=self.speaker_wav,
+            language=language,
+            speed=speed,
+            emotion=emotion,
+            file_path=audio_file.name
+        )
 
         # pub audio
         audio_file.seek(0)
