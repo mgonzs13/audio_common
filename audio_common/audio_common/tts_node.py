@@ -52,7 +52,7 @@ class AudioCapturerNode(Node):
             ("chunk", 4096),
             ("frame_id", ""),
 
-            ("model", "tts_models/en/ljspeech/tacotron2-DDC"),
+            ("model", "tts_models/en/ljspeech/vits"),
             ("speaker_wav", ""),
             ("device", "cpu")
         ])
