@@ -122,12 +122,6 @@ class AudioCapturerNode(Node):
 
         text = request.text
         language = request.language
-        speed = request.speed
-        emotion = request.emotion
-
-        if not self.tts.is_coqui_studio:
-            speed = None
-            emotion = None
 
         if not self.tts.is_multi_lingual:
             language = None
@@ -138,8 +132,6 @@ class AudioCapturerNode(Node):
             text,
             speaker_wav=self.speaker_wav,
             language=language,
-            speed=speed,
-            emotion=emotion,
             file_path=audio_file.name
         )
 
