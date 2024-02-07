@@ -40,7 +40,7 @@ class AudioPlayerNode(Node):
     def __init__(self) -> None:
         super().__init__("audio_player_node")
 
-        self.declare_parameter("channels", 1)
+        self.declare_parameter("channels", 2)
         self.channels = self.get_parameter(
             "channels").get_parameter_value().integer_value
 
@@ -97,7 +97,7 @@ class AudioPlayerNode(Node):
 
         data = data.tobytes()
 
-        stream = self.stream_dict[stream_key]
+        stream: pyaudio.PyAudio.Stream = self.stream_dict[stream_key]
         stream.write(data)
 
     def play_audio_srv(
