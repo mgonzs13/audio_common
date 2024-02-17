@@ -57,11 +57,9 @@ class AudioPlayerNode(Node):
             AudioStamped, "audio", self.audio_callback, qos_profile_sensor_data)
 
     def destroy_node(self) -> bool:
-        self.audio.terminate()
-
         for key in self.stream_dict:
             self.stream_dict[key].close()
-
+        self.audio.terminate()
         return super().destroy_node()
 
     def audio_callback(self, msg: AudioStamped) -> None:
