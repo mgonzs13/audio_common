@@ -24,6 +24,7 @@
 
 
 import os
+import time
 import wave
 import pyaudio
 import tempfile
@@ -32,13 +33,13 @@ from TTS.api import TTS as TtsModel
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.action.server import ServerGoalHandle
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
 from audio_common_msgs.msg import AudioStamped
-from audio_common_msgs.srv import PlayAudio
 from audio_common_msgs.action import TTS
 from audio_common.utils import data_to_msg
 
@@ -80,8 +81,8 @@ class AudioCapturerNode(Node):
 
         self.tts = TtsModel(self.model).to(self.device)
 
-        self.player_client = self.create_client(
-            PlayAudio, "play_audio", callback_group=ReentrantCallbackGroup())
+        self.player_pub = self.create_publisher(
+            AudioStamped, "audio", qos_profile_sensor_data)
 
         # action server
         self._goal_handle = None
@@ -141,6 +142,9 @@ class AudioCapturerNode(Node):
         audio_file.close()
         audio_format = pyaudio.get_format_from_width(wf.getsampwidth())
 
+        frequency = wf.getframerate() / self.chunk
+        pub_rate = self.create_rate(frequency)
+
         # send audio data
         data = wf.readframes(self.chunk)
         while data:
@@ -166,10 +170,8 @@ class AudioCapturerNode(Node):
             msg.audio.info.chunk = self.chunk
             msg.audio.info.rate = wf.getframerate()
 
-            request = PlayAudio.Request()
-            request.audio = msg
-            self.player_client.wait_for_service()
-            self.player_client.call(request)
+            self.player_pub.publish(msg)
+            pub_rate.sleep()
 
             data = wf.readframes(self.chunk)
 
