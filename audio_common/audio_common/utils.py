@@ -46,8 +46,14 @@ def data_to_array(data: bytes, audio_format: int) -> np.ndarray:
 
 def data_to_msg(data: bytes, audio_format: int) -> AudioData:
 
+    array = data_to_array(data, audio_format)
+    return array_to_msg(array, audio_format)
+
+
+def array_to_msg(array: np.ndarray, audio_format: int) -> AudioData:
+
     msg = AudioData()
-    list_data = data_to_array(data, audio_format).tolist()
+    list_data = array.tolist()
 
     if list_data is None:
         return None
