@@ -43,15 +43,15 @@ class AudioFilterNode(Node):
         self.filter_type = self.get_parameter(
             "filter_type").get_parameter_value().string_value
 
-        self.declare_parameter("low_cutoff", 300)
+        self.declare_parameter("low_cutoff", 400)
         self.low_cutoff = self.get_parameter(
             "low_cutoff").get_parameter_value().integer_value
 
-        self.declare_parameter("high_cutoff", 2000)
+        self.declare_parameter("high_cutoff", 1400)
         self.high_cutoff = self.get_parameter(
             "high_cutoff").get_parameter_value().integer_value
 
-        self.declare_parameter("filter_order", 4)
+        self.declare_parameter("filter_order", 5)
         self.filter_order = self.get_parameter(
             "filter_order").get_parameter_value().integer_value
 
@@ -62,23 +62,20 @@ class AudioFilterNode(Node):
 
     def audio_filter(self, data, rate: int) -> np.ndarray:
 
-        nyq = 0.5 * rate
-        low = self.low_cutoff / nyq
-        high = self.high_cutoff / nyq
-
-        Wn = low
+        Wn = self.low_cutoff
 
         if self.filter_type == "high":
-            Wn = low
+            Wn = self.low_cutoff
         elif self.filter_type == "low":
-            Wn = high
+            Wn = self.high_cutoff
         elif self.filter_type == "band" or self.filter_type == "bandstop":
-            Wn = [low, high]
+            Wn = [self.low_cutoff, self.high_cutoff]
 
         b, a = butter(
             self.filter_order,
             Wn,
             btype=self.filter_type,
+            fs=rate,
             analog=False,
             output="ba"
         )
