@@ -39,21 +39,26 @@ class AudioFilterNode(Node):
     def __init__(self) -> None:
         super().__init__("audio_filter_node")
 
-        self.declare_parameter("filter_type", "band")
+        self.declare_parameters("", [
+            ("filter_type", "band"),
+            ("low_cutoff", 200),
+            ("high_cutoff", 2000),
+            ("filter_order", 4),
+        ])
+
         self.filter_type = self.get_parameter(
             "filter_type").get_parameter_value().string_value
-
-        self.declare_parameter("low_cutoff", 200)
         self.low_cutoff = self.get_parameter(
             "low_cutoff").get_parameter_value().integer_value
-
-        self.declare_parameter("high_cutoff", 2000)
         self.high_cutoff = self.get_parameter(
             "high_cutoff").get_parameter_value().integer_value
-
-        self.declare_parameter("filter_order", 4)
         self.filter_order = self.get_parameter(
             "filter_order").get_parameter_value().integer_value
+
+        if self.filter_type not in ["high", "low", "band", "bandstop"]:
+            self.get_logger().warning(
+                f"Invalid filter type: {self.filter_type}. Using default 'band' filter.")
+            self.filter_type = "band"
 
         self.audio_pub = self.create_publisher(
             AudioStamped, "filtered_audio", qos_profile_sensor_data)

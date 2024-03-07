@@ -39,11 +39,13 @@ class AudioPlayerNode(Node):
     def __init__(self) -> None:
         super().__init__("audio_player_node")
 
-        self.declare_parameter("channels", 2)
+        self.declare_parameters("", [
+            ("channels", 2),
+            ("device", -1),
+        ])
+
         self.channels = self.get_parameter(
             "channels").get_parameter_value().integer_value
-
-        self.declare_parameter("device", -1)
         self.device = self.get_parameter(
             "device").get_parameter_value().integer_value
 
