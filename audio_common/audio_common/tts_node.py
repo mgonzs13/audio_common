@@ -24,12 +24,10 @@
 
 
 import os
-import time
 import wave
 import pyaudio
 import tempfile
 import threading
-from TTS.api import TTS as TtsModel
 
 import rclpy
 from rclpy.node import Node
@@ -52,10 +50,6 @@ class AudioCapturerNode(Node):
         self.declare_parameters("", [
             ("chunk", 4096),
             ("frame_id", ""),
-
-            ("model", "tts_models/en/ljspeech/vits"),
-            ("speaker_wav", ""),
-            ("device", "cpu")
         ])
 
         self.chunk = self.get_parameter(
@@ -63,23 +57,7 @@ class AudioCapturerNode(Node):
         self.frame_id = self.get_parameter(
             "frame_id").get_parameter_value().string_value
 
-        self.model = self.get_parameter(
-            "model").get_parameter_value().string_value
-        self.speaker_wav = self.get_parameter(
-            "speaker_wav").get_parameter_value().string_value
-        self.device = self.get_parameter(
-            "device").get_parameter_value().string_value
-
-        if (
-            not self.speaker_wav or
-            not (
-                os.path.exists(self.speaker_wav) and
-                os.path.isfile(self.speaker_wav)
-            )
-        ):
-            self.speaker_wav = None
-
-        self.tts = TtsModel(self.model).to(self.device)
+        self.espeak_cmd = "espeak -v{} -s{} -a{} -w {} '{}'"
 
         self.player_pub = self.create_publisher(
             AudioStamped, "audio", qos_profile_sensor_data)
@@ -123,18 +101,13 @@ class AudioCapturerNode(Node):
 
         text = request.text
         language = request.language
-
-        if not self.tts.is_multi_lingual:
-            language = None
+        rate = request.rate * 350
+        volume = request.volume * 200
 
         # create audio file
         audio_file = tempfile.NamedTemporaryFile(mode="w+")
-        self.tts.tts_to_file(
-            text,
-            speaker_wav=self.speaker_wav,
-            language=language,
-            file_path=audio_file.name
-        )
+        os.system(self.espeak_cmd.format(
+            language, rate, volume, audio_file.name, text))
 
         # pub audio
         audio_file.seek(0)
