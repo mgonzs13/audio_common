@@ -25,10 +25,4 @@ install(PROGRAMS
   RENAME tts_node
 )
 
-install(PROGRAMS
-  audio_common/audio_filter_node.py
-  DESTINATION lib/${PROJECT_NAME}
-  RENAME audio_filter_node
-)
-
 ament_package()
