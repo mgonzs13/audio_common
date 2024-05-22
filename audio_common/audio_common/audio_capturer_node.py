@@ -90,13 +90,12 @@ class AudioCapturerNode(Node):
             msg.header.frame_id = self.frame_id
             msg.header.stamp = self.get_clock().now().to_msg()
 
-            audio_data_msg = data_to_msg(data, self.format)
-            if audio_data_msg is None:
+            audio_msg = data_to_msg(data, self.format)
+            if audio_msg is None:
                 self.get_logger().error(f"Format {self.format} unknown")
                 return
 
-            msg.audio.audio_data = audio_data_msg
-            msg.audio.info.format = self.format
+            msg.audio = audio_msg
             msg.audio.info.channels = self.channels
             msg.audio.info.chunk = self.chunk
             msg.audio.info.rate = self.rate

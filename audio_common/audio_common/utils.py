@@ -23,15 +23,22 @@
 
 import pyaudio
 import numpy as np
-from audio_common_msgs.msg import AudioData
+from audio_common_msgs.msg import Audio
 
 pyaudio_to_np = {
     pyaudio.paFloat32: np.float32,
     pyaudio.paInt32: np.int32,
-    pyaudio.paInt24: np.int32,
     pyaudio.paInt16: np.int16,
     pyaudio.paInt8: np.int8,
     pyaudio.paUInt8: np.uint8
+}
+
+np_to_pyaudio = {
+    np.float32: pyaudio.paFloat32,
+    np.int32: pyaudio.paInt32,
+    np.int16: pyaudio.paInt16,
+    np.int8: pyaudio.paInt8,
+    np.uint8: pyaudio.paUInt8,
 }
 
 
@@ -44,54 +51,64 @@ def data_to_array(data: bytes, audio_format: int) -> np.ndarray:
         data, dtype=pyaudio_to_np[audio_format])
 
 
-def data_to_msg(data: bytes, audio_format: int) -> AudioData:
+def array_to_data(array: np.ndarray) -> bytes:
+    return array.tobytes()
+
+
+def data_to_msg(data: bytes, audio_format: int) -> Audio:
 
     array = data_to_array(data, audio_format)
-    return array_to_msg(array, audio_format)
+    return array_to_msg(array)
 
 
-def array_to_msg(array: np.ndarray, audio_format: int) -> AudioData:
+def msg_to_data(msg: Audio) -> bytes:
 
-    msg = AudioData()
+    array = msg_to_array(msg)
+    return array.tobytes()
+
+
+def array_to_msg(array: np.ndarray) -> Audio:
+
+    msg = Audio()
     list_data = array.tolist()
 
     if list_data is None:
         return None
 
-    if audio_format == pyaudio.paFloat32:
-        msg.float32_data = list_data
-    elif audio_format == pyaudio.paInt32:
-        msg.int32_data = list_data
-    elif audio_format == pyaudio.paInt24:
-        msg.int24_data = list_data
-    elif audio_format == pyaudio.paInt16:
-        msg.int16_data = list_data
-    elif audio_format == pyaudio.paInt8:
-        msg.int8_data = list_data
-    elif audio_format == pyaudio.paUInt8:
-        msg.uint8_data = list_data
+    audio_format = type(array[0])
+    msg.info.format = np_to_pyaudio[audio_format]
+
+    if audio_format == np.float32:
+        msg.audio_data.float32_data = list_data
+    elif audio_format == np.int32:
+        msg.audio_data.int32_data = list_data
+    elif audio_format == np.int16:
+        msg.audio_data.int16_data = list_data
+    elif audio_format == np.int8:
+        msg.audio_data.int8_data = list_data
+    elif audio_format == np.uint8:
+        msg.audio_data.uint8_data = list_data
     else:
         return None
 
     return msg
 
 
-def msg_to_array(msg: AudioData, audio_format: int) -> np.ndarray:
+def msg_to_array(msg: Audio) -> np.ndarray:
 
     data = None
+    audio_format = msg.info.format
 
     if audio_format == pyaudio.paFloat32:
-        data = msg.float32_data
+        data = msg.audio_data.float32_data
     elif audio_format == pyaudio.paInt32:
-        data = msg.int32_data
-    elif audio_format == pyaudio.paInt24:
-        data = msg.int24_data
+        data = msg.audio_data.int32_data
     elif audio_format == pyaudio.paInt16:
-        data = msg.int16_data
+        data = msg.audio_data.int16_data
     elif audio_format == pyaudio.paInt8:
-        data = msg.int8_data
+        data = msg.audio_data.int8_data
     elif audio_format == pyaudio.paUInt8:
-        data = msg.uint8_data
+        data = msg.audio_data.uint8_data
 
     if data is not None:
         data = np.frombuffer(data, pyaudio_to_np[audio_format])

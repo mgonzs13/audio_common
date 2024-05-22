@@ -31,7 +31,7 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 
 from audio_common_msgs.msg import AudioStamped
-from audio_common.utils import msg_to_array
+from audio_common.utils import msg_to_array, array_to_data
 
 
 class AudioPlayerNode(Node):
@@ -77,22 +77,22 @@ class AudioPlayerNode(Node):
                 output_device_index=self.device
             )
 
-        data = msg_to_array(msg.audio.audio_data, msg.audio.info.format)
-        if data is None:
+        array_data = msg_to_array(msg.audio)
+        if array_data is None:
             self.get_logger().error(f"Format {msg.audio.info.format} unknown")
             return
 
         if msg.audio.info.channels != self.channels:
             if msg.audio.info.channels == 1 and self.channels == 2:
                 # mono to stereo
-                data = np.repeat(data, 2)
+                array_data = np.repeat(array_data, 2)
 
             elif msg.audio.info.channels == 2 and self.channels == 1:
                 # stereo to mono
-                data = np.mean(data.reshape(-1, 2), axis=1).astype(int)
+                array_data = np.mean(
+                    array_data.reshape(-1, 2), axis=1).astype(int)
 
-        data = data.tobytes()
-
+        data = array_to_data(array_data)
         stream: pyaudio.PyAudio.Stream = self.stream_dict[stream_key]
         stream.write(data)
 
