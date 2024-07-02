@@ -147,8 +147,10 @@ class AudioCapturerNode(Node):
 
             data = wf.readframes(self.chunk)
 
+        result = TTS.Result()
+        result.text = text
         goal_handle.succeed()
-        return TTS.Result()
+        return result
 
 
 def main(args=None):
