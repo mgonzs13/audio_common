@@ -80,14 +80,19 @@ def array_to_msg(array: np.ndarray) -> Audio:
 
     if audio_format == np.float32:
         msg.audio_data.float32_data = list_data
+
     elif audio_format == np.int32:
         msg.audio_data.int32_data = list_data
+
     elif audio_format == np.int16:
         msg.audio_data.int16_data = list_data
+
     elif audio_format == np.int8:
         msg.audio_data.int8_data = list_data
+
     elif audio_format == np.uint8:
         msg.audio_data.uint8_data = list_data
+
     else:
         return None
 
@@ -101,12 +106,16 @@ def msg_to_array(msg: Audio) -> np.ndarray:
 
     if audio_format == pyaudio.paFloat32:
         data = msg.audio_data.float32_data
+
     elif audio_format == pyaudio.paInt32:
         data = msg.audio_data.int32_data
+
     elif audio_format == pyaudio.paInt16:
         data = msg.audio_data.int16_data
+
     elif audio_format == pyaudio.paInt8:
         data = msg.audio_data.int8_data
+
     elif audio_format == pyaudio.paUInt8:
         data = msg.audio_data.uint8_data
 

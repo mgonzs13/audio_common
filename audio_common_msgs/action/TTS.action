@@ -4,3 +4,4 @@ float32 volume 0.5
 float32 rate 0.5
 ---
 ---
+string text
