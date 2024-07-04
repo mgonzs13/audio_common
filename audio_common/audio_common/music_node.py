@@ -127,7 +127,7 @@ class MusicNode(Node):
         if path == "":
             path = os.path.join(
                 get_package_share_directory(
-                    "audio_common"), "samples", request.audio)
+                    "audio_common"), "samples", request.audio + '.mp3')
 
         if not os.path.exists(path):
             self.get_logger().error(f"File {path} not found")
