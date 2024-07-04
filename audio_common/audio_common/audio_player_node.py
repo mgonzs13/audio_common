@@ -58,6 +58,8 @@ class AudioPlayerNode(Node):
         self.sub = self.create_subscription(
             AudioStamped, "audio", self.audio_callback, qos_profile_sensor_data)
 
+        self.get_logger().info("AudioPlayer node started")
+
     def destroy_node(self) -> bool:
         for key in self.stream_dict:
             self.stream_dict[key].close()
@@ -95,12 +97,6 @@ class AudioPlayerNode(Node):
         data = array_to_data(array_data)
         stream: pyaudio.PyAudio.Stream = self.stream_dict[stream_key]
         stream.write(data)
-
-        # add silence if needed
-        if len(array_data) < msg.audio.info.chunk * msg.audio.info.channels:
-            silence = chr(0) * (len(array_data) -
-                                msg.audio.info.chunk * msg.audio.info.channels)
-            stream.write(silence)
 
 
 def main(args=None):
