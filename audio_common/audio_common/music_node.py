@@ -53,12 +53,12 @@ class MusicNode(Node):
         super().__init__("music_node")
 
         self.declare_parameters("", [
-            ("chunk", 2000),
+            ("chunk_time", 1000),
             ("frame_id", ""),
         ])
 
-        self.chunk = self.get_parameter(
-            "chunk").get_parameter_value().integer_value
+        self.chunk_time = self.get_parameter(
+            "chunk_time").get_parameter_value().integer_value
         self.frame_id = self.get_parameter(
             "frame_id").get_parameter_value().string_value
 
@@ -87,18 +87,17 @@ class MusicNode(Node):
         self.get_logger().info("Music node started")
 
     def publish_audio(self) -> None:
-        while True:
+        while True and rclpy.ok():
             if self.music_data is None:
                 self.music_event.clear()
                 self.music_event.wait()
 
             audio: AudioSegment = self.music_data
-            audio_data = make_chunks(audio, self.chunk)
+            audio_data = make_chunks(audio, self.chunk_time)
             audio_format = pyaudio.get_format_from_width(audio.sample_width)
 
-            real_chunk = self.chunk * audio.frame_rate / 1000
-
-            pub_rate = self.create_rate(audio.frame_rate / real_chunk)
+            pub_rate = self.create_rate(1000 / self.chunk_time)
+            chunk_size = round(self.chunk_time * audio.frame_rate / 1000)
 
             for chunk in audio_data:
                 self.music_event.wait()
@@ -114,7 +113,7 @@ class MusicNode(Node):
                 msg.header.stamp = self.get_clock().now().to_msg()
                 msg.audio = audio_msg
                 msg.audio.info.channels = audio.channels
-                msg.audio.info.chunk = round(real_chunk)
+                msg.audio.info.chunk = chunk_size
                 msg.audio.info.rate = audio.frame_rate
 
                 self.player_pub.publish(msg)
