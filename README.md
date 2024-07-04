@@ -39,3 +39,17 @@ $ ros2 run audio_common audio_player_node
 ```shell
 $ ros2 action send_goal /say audio_common_msgs/action/TTS "{'text': 'Hello World'}"
 ```
+
+### Music Player
+
+```shell
+$ ros2 run audio_common music_node
+```
+
+```shell
+$ ros2 run audio_common audio_player_node
+```
+
+```shell
+$ ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{audio: 'elevator.mp3'}"
+```
