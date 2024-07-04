@@ -56,7 +56,6 @@ class AudioPlayerNode(Node):
         self.stream_dict = {}
 
         qos_profile = qos_profile_sensor_data
-        qos_profile.depth = 10
         self.sub = self.create_subscription(
             AudioStamped, "audio", self.audio_callback, qos_profile)
 
@@ -99,7 +98,11 @@ class AudioPlayerNode(Node):
 
         data = array_to_data(array_data)
         stream: pyaudio.PyAudio.Stream = self.stream_dict[stream_key]
-        stream.write(data)
+        stream.write(
+            data,
+            exception_on_underflow=False,
+            num_frames=msg.audio.info.chunk
+        )
 
 
 def main(args=None):
