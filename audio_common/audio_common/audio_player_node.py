@@ -97,8 +97,9 @@ class AudioPlayerNode(Node):
         stream.write(data)
 
         # add silence if needed
-        if len(array_data) < msg.audio.info.chunk:
-            silence = chr(0) * (len(array_data) - msg.audio.info.chunk)
+        if len(array_data) < msg.audio.info.chunk * msg.audio.info.channels:
+            silence = chr(0) * (len(array_data) -
+                                msg.audio.info.chunk * msg.audio.info.channels)
             stream.write(silence)
 
 

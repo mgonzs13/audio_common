@@ -52,7 +52,7 @@ class MusicNode(Node):
         super().__init__("music_node")
 
         self.declare_parameters("", [
-            ("chunk_time", 1000),
+            ("chunk_time", 50),
             ("frame_id", ""),
         ])
 
