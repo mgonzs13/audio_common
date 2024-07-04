@@ -76,6 +76,8 @@ class AudioCapturerNode(Node):
         self.audio_pub = self.create_publisher(
             AudioStamped, "audio", qos_profile_sensor_data)
 
+        self.get_logger().info("AudioCapturer node started")
+
     def destroy_node(self) -> bool:
         self.stream.close()
         self.audio.terminate()

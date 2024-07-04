@@ -31,7 +31,7 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 
 from audio_common_msgs.msg import AudioStamped
-from audio_common.utils import msg_to_array, array_to_data
+from audio_common.utils import msg_to_array, array_to_data, pyaudio_to_np
 
 
 class AudioPlayerNode(Node):
@@ -55,8 +55,12 @@ class AudioPlayerNode(Node):
         self.audio = pyaudio.PyAudio()
         self.stream_dict = {}
 
+        qos_profile = qos_profile_sensor_data
+        qos_profile.depth = 10
         self.sub = self.create_subscription(
-            AudioStamped, "audio", self.audio_callback, qos_profile_sensor_data)
+            AudioStamped, "audio", self.audio_callback, qos_profile)
+
+        self.get_logger().info("AudioPlayer node started")
 
     def destroy_node(self) -> bool:
         for key in self.stream_dict:
@@ -89,8 +93,9 @@ class AudioPlayerNode(Node):
 
             elif msg.audio.info.channels == 2 and self.channels == 1:
                 # stereo to mono
-                array_data = np.mean(
-                    array_data.reshape(-1, 2), axis=1).astype(int)
+                array_data = np.mean(array_data.reshape(-1, 2), axis=1)
+                array_data = array_data.astype(
+                    pyaudio_to_np[msg.audio.info.format])
 
         data = array_to_data(array_data)
         stream: pyaudio.PyAudio.Stream = self.stream_dict[stream_key]
