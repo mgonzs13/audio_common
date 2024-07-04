@@ -96,6 +96,11 @@ class AudioPlayerNode(Node):
         stream: pyaudio.PyAudio.Stream = self.stream_dict[stream_key]
         stream.write(data)
 
+        # add silence if needed
+        if len(array_data) < msg.audio.info.chunk:
+            silence = chr(0) * (len(array_data) - msg.audio.info.chunk)
+            stream.write(silence)
+
 
 def main(args=None):
     rclpy.init(args=args)
