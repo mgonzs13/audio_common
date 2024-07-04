@@ -125,7 +125,7 @@ def msg_to_array(msg: Audio) -> np.ndarray:
     return data
 
 
-def get_msg_data_size(msg: Audio) -> int:
+def get_msg_chunk(msg: Audio) -> int:
 
     data = None
     audio_format = msg.info.format
@@ -146,6 +146,9 @@ def get_msg_data_size(msg: Audio) -> int:
         data = msg.audio_data.uint8_data
 
     if data is not None:
-        return len(data)
+        if msg.info.channels == 1:
+            return len(data)
+        else:
+            return int(len(data) / 2)
     else:
         return -1
