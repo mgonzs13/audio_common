@@ -123,3 +123,29 @@ def msg_to_array(msg: Audio) -> np.ndarray:
         data = np.frombuffer(data, pyaudio_to_np[audio_format])
 
     return data
+
+
+def get_msg_data_size(msg: Audio) -> int:
+
+    data = None
+    audio_format = msg.info.format
+
+    if audio_format == pyaudio.paFloat32:
+        data = msg.audio_data.float32_data
+
+    elif audio_format == pyaudio.paInt32:
+        data = msg.audio_data.int32_data
+
+    elif audio_format == pyaudio.paInt16:
+        data = msg.audio_data.int16_data
+
+    elif audio_format == pyaudio.paInt8:
+        data = msg.audio_data.int8_data
+
+    elif audio_format == pyaudio.paUInt8:
+        data = msg.audio_data.uint8_data
+
+    if data is not None:
+        return len(data)
+    else:
+        return -1

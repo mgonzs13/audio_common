@@ -39,6 +39,7 @@ from rclpy.qos import qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 
 from audio_common.utils import data_to_msg
+from audio_common.utils import get_msg_data_size
 from std_srvs.srv import Trigger
 from audio_common_msgs.srv import MusicPlay
 from audio_common_msgs.msg import AudioStamped
@@ -88,7 +89,6 @@ class MusicNode(Node):
     def publish_audio(self, audio: AudioSegment) -> None:
         audio_data = make_chunks(audio, self.chunk_time)
         audio_format = pyaudio.get_format_from_width(audio.sample_width)
-        chunk_size = round(self.chunk_time * audio.frame_rate / 1000)
 
         pub_rate = self.create_rate(1000 / self.chunk_time)
 
@@ -105,7 +105,7 @@ class MusicNode(Node):
                 msg.header.stamp = self.get_clock().now().to_msg()
                 msg.audio = audio_msg
                 msg.audio.info.channels = audio.channels
-                msg.audio.info.chunk = chunk_size
+                msg.audio.info.chunk = get_msg_data_size(audio_msg)
                 msg.audio.info.rate = audio.frame_rate
 
                 self.player_pub.publish(msg)
