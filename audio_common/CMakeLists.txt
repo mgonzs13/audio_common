@@ -28,7 +28,7 @@ install(PROGRAMS
 install(PROGRAMS
   audio_common/music_node.py
   DESTINATION lib/${PROJECT_NAME}
-  RENAME music_player_node
+  RENAME music_node
 )
 
 install(

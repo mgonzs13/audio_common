@@ -37,7 +37,6 @@ from typing import Optional
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-from rclpy.executors import MultiThreadedExecutor
 from ament_index_python.packages import get_package_share_directory
 
 from audio_common_msgs.msg import AudioStamped
@@ -122,12 +121,18 @@ class MusicNode(Node):
             if not self.audio_loop:
                 self.music_data = None
 
-    def play_callback(self, request, response) -> MusicPlay.Response:
+    def play_callback(
+        self,
+        request: MusicPlay.Request,
+        response: MusicPlay.Response
+    ) -> MusicPlay.Response:
+
         path = request.file_path
-        if path == "":
+
+        if not path:
             path = os.path.join(
                 get_package_share_directory(
-                    "audio_common"), "samples", request.audio + '.mp3')
+                    "audio_common"), "samples", request.audio + ".mp3")
 
         if not os.path.exists(path):
             self.get_logger().error(f"File {path} not found")
@@ -150,7 +155,11 @@ class MusicNode(Node):
 
         return response
 
-    def pause_callback(self, request, response) -> Trigger.Response:
+    def pause_callback(
+        self,
+        request: Trigger.Request,
+        response: Trigger.Response
+    ) -> Trigger.Response:
         if self.music_data is not None:
             self.music_event.clear()
             self.get_logger().info("Music paused")
@@ -161,7 +170,11 @@ class MusicNode(Node):
 
         return response
 
-    def resume_callback(self, request, response) -> Trigger.Response:
+    def resume_callback(
+        self,
+        request: Trigger.Request,
+        response: Trigger.Response
+    ) -> Trigger.Response:
         if self.music_data is not None:
             self.music_event.set()
             self.get_logger().info("Music resumed")
@@ -172,7 +185,11 @@ class MusicNode(Node):
 
         return response
 
-    def stop_callback(self, request, response) -> Trigger.Response:
+    def stop_callback(
+        self,
+        request: Trigger.Request,
+        response: Trigger.Response
+    ) -> Trigger.Response:
         if self.music_data is not None:
             self.music_data = None
             self.get_logger().info("Music stopped")
@@ -187,8 +204,7 @@ class MusicNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = MusicNode()
-    executor = MultiThreadedExecutor()
-    rclpy.spin(node, executor=executor)
+    rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
 

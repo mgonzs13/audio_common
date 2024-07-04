@@ -51,5 +51,5 @@ $ ros2 run audio_common audio_player_node
 ```
 
 ```shell
-$ ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{audio: 'elevator.mp3'}"
+$ ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{audio: 'elevator'}"
 ```
