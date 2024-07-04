@@ -25,4 +25,15 @@ install(PROGRAMS
   RENAME tts_node
 )
 
+install(PROGRAMS
+  audio_common/music_node2.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME music_player_node
+)
+
+install(
+  DIRECTORY samples
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()
