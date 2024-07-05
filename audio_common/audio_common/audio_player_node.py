@@ -69,7 +69,7 @@ class AudioPlayerNode(Node):
 
     def audio_callback(self, msg: AudioStamped) -> None:
 
-        stream_key = f"{msg.audio.info.format}_{msg.audio.info.rate}"
+        stream_key = f"{msg.audio.info.format}_{msg.audio.info.rate}_{self.channels}"
 
         if stream_key not in self.stream_dict:
             self.stream_dict[stream_key] = self.audio.open(
