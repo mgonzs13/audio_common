@@ -206,7 +206,7 @@ class MusicNode(Node):
     ) -> Trigger.Response:
         if self.publish_thread and self.publish_thread.is_alive():
             self.stop_music = True
-            self.publish_thread.join()
+            self.publish_thread.join(1)
             self.get_logger().info("Music stopped")
             response.success = True
 
