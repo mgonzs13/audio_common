@@ -25,10 +25,8 @@
 
 
 import os
+import wave
 import pyaudio
-from pydub import AudioSegment
-from pydub.utils import make_chunks
-from pydub.utils import mediainfo_json
 
 from threading import Event
 from threading import Thread
@@ -51,15 +49,18 @@ class MusicNode(Node):
         super().__init__("music_node")
 
         # parameters
-        self.declare_parameters("", [
-            ("chunk_time", 50),
-            ("frame_id", ""),
-        ])
+        self.declare_parameters(
+            "",
+            [
+                ("chunk", 4096),
+                ("frame_id", ""),
+            ],
+        )
 
-        self.chunk_time = self.get_parameter(
-            "chunk_time").get_parameter_value().integer_value
-        self.frame_id = self.get_parameter(
-            "frame_id").get_parameter_value().string_value
+        self.chunk = self.get_parameter("chunk").get_parameter_value().integer_value
+        self.frame_id = (
+            self.get_parameter("frame_id").get_parameter_value().string_value
+        )
 
         # audio pub
         self.publish_thread = None
@@ -69,47 +70,56 @@ class MusicNode(Node):
         self.audio_loop = False
 
         self.player_pub = self.create_publisher(
-            AudioStamped, "audio", qos_profile_sensor_data)
+            AudioStamped, "audio", qos_profile_sensor_data
+        )
 
         # services
         self.play_service = self.create_service(
-            MusicPlay, "music_play", self.play_callback)
+            MusicPlay, "music_play", self.play_callback
+        )
 
         self.stop_service = self.create_service(
-            Trigger, "music_stop", self.stop_callback)
+            Trigger, "music_stop", self.stop_callback
+        )
 
         self.pause_service = self.create_service(
-            Trigger, "music_pause", self.pause_callback)
+            Trigger, "music_pause", self.pause_callback
+        )
 
         self.resume_service = self.create_service(
-            Trigger, "music_resume", self.resume_callback)
+            Trigger, "music_resume", self.resume_callback
+        )
 
         self.get_logger().info("Music node started")
 
-    def publish_audio(self, audio: AudioSegment) -> None:
-        audio_data = make_chunks(audio, self.chunk_time)
-        audio_format = pyaudio.get_format_from_width(audio.sample_width)
-
-        pub_rate = self.create_rate(1000 / self.chunk_time)
+    def publish_audio(self, file_path: str) -> None:
 
         while not self.stop_music:
-            for chunk in audio_data:
 
-                audio_msg = data_to_msg(chunk.raw_data, audio_format)
+            wf = wave.open(file_path, "rb")
+            audio_format = pyaudio.get_format_from_width(wf.getsampwidth())
+            frequency = wf.getframerate() / self.chunk
+            pub_rate = self.create_rate(frequency)
+            data = wf.readframes(self.chunk)
+
+            while data:
+                audio_msg = data_to_msg(data, audio_format)
+
                 if audio_msg is None:
                     self.get_logger().error(f"Format {audio_format} unknown")
-                    return
 
                 msg = AudioStamped()
                 msg.header.frame_id = self.frame_id
                 msg.header.stamp = self.get_clock().now().to_msg()
                 msg.audio = audio_msg
-                msg.audio.info.channels = audio.channels
+                msg.audio.info.channels = wf.getnchannels()
                 msg.audio.info.chunk = get_msg_chunk(audio_msg)
-                msg.audio.info.rate = audio.frame_rate
+                msg.audio.info.rate = wf.getframerate()
 
                 self.player_pub.publish(msg)
                 pub_rate.sleep()
+
+                data = wf.readframes(self.chunk)
 
                 if self.pause_music:
                     self.music_event.clear()
@@ -118,13 +128,13 @@ class MusicNode(Node):
                 if self.stop_music:
                     break
 
+            wf.close()
+
             if not self.audio_loop and not self.stop_music:
                 break
 
     def play_callback(
-        self,
-        request: MusicPlay.Request,
-        response: MusicPlay.Response
+        self, request: MusicPlay.Request, response: MusicPlay.Response
     ) -> MusicPlay.Response:
 
         if self.publish_thread and self.publish_thread.is_alive():
@@ -136,42 +146,31 @@ class MusicNode(Node):
 
         if not path:
             path = os.path.join(
-                get_package_share_directory(
-                    "audio_common"), "samples", request.audio + ".mp3")
+                get_package_share_directory("audio_common"),
+                "samples",
+                request.audio + ".wav",
+            )
 
         if not os.path.exists(path):
             self.get_logger().error(f"File {path} not found")
             response.success = False
 
         else:
-            music_data: AudioSegment = AudioSegment.from_file(path)
 
             self.get_logger().info(f"Playing {path}")
-
-            try:
-                self.get_logger().info(
-                    f"Title: {mediainfo_json(path)['format']['tags']['title']}")
-            except KeyError:
-                pass
-
-            self.get_logger().info(
-                f"Duration: {music_data.duration_seconds} seconds")
 
             self.audio_loop = request.loop
             self.pause_music = False
             self.stop_music = False
             response.success = True
 
-            self.publish_thread = Thread(
-                target=self.publish_audio, args=(music_data,))
+            self.publish_thread = Thread(target=self.publish_audio, args=(path,))
             self.publish_thread.start()
 
         return response
 
     def pause_callback(
-        self,
-        request: Trigger.Request,
-        response: Trigger.Response
+        self, request: Trigger.Request, response: Trigger.Response
     ) -> Trigger.Response:
         if self.publish_thread and self.publish_thread.is_alive():
             self.pause_music = True
@@ -184,9 +183,7 @@ class MusicNode(Node):
         return response
 
     def resume_callback(
-        self,
-        request: Trigger.Request,
-        response: Trigger.Response
+        self, request: Trigger.Request, response: Trigger.Response
     ) -> Trigger.Response:
         if self.publish_thread and self.publish_thread.is_alive():
             self.pause_music = False
@@ -200,9 +197,7 @@ class MusicNode(Node):
         return response
 
     def stop_callback(
-        self,
-        request: Trigger.Request,
-        response: Trigger.Response
+        self, request: Trigger.Request, response: Trigger.Response
     ) -> Trigger.Response:
         if self.publish_thread and self.publish_thread.is_alive():
             self.stop_music = True
