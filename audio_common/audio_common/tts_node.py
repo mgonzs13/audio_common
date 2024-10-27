@@ -48,20 +48,24 @@ class AudioCapturerNode(Node):
     def __init__(self) -> None:
         super().__init__("tts_node")
 
-        self.declare_parameters("", [
-            ("chunk", 4096),
-            ("frame_id", ""),
-        ])
+        self.declare_parameters(
+            "",
+            [
+                ("chunk", 4096),
+                ("frame_id", ""),
+            ],
+        )
 
-        self.chunk = self.get_parameter(
-            "chunk").get_parameter_value().integer_value
-        self.frame_id = self.get_parameter(
-            "frame_id").get_parameter_value().string_value
+        self.chunk = self.get_parameter("chunk").get_parameter_value().integer_value
+        self.frame_id = (
+            self.get_parameter("frame_id").get_parameter_value().string_value
+        )
 
         self.espeak_cmd = "espeak -v{} -s{} -a{} -w {} '{}'"
 
         self.player_pub = self.create_publisher(
-            AudioStamped, "audio", qos_profile_sensor_data)
+            AudioStamped, "audio", qos_profile_sensor_data
+        )
 
         # action server
         self._goal_handle = None
@@ -74,7 +78,7 @@ class AudioCapturerNode(Node):
             goal_callback=self.goal_callback,
             handle_accepted_callback=self.handle_accepted_callback,
             cancel_callback=self.cancel_callback,
-            callback_group=ReentrantCallbackGroup()
+            callback_group=ReentrantCallbackGroup(),
         )
 
         self.get_logger().info("TTS node started")
@@ -107,8 +111,7 @@ class AudioCapturerNode(Node):
 
         # create audio file
         audio_file = tempfile.NamedTemporaryFile(mode="w+")
-        os.system(self.espeak_cmd.format(
-            language, rate, volume, audio_file.name, text))
+        os.system(self.espeak_cmd.format(language, rate, volume, audio_file.name, text))
 
         # pub audio
         audio_file.seek(0)

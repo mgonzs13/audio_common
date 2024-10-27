@@ -38,27 +38,28 @@ class AudioCapturerNode(Node):
     def __init__(self) -> None:
         super().__init__("audio_capturer_node")
 
-        self.declare_parameters("", [
-            ("format", pyaudio.paInt16),
-            ("channels", 1),
-            ("rate", 16000),
-            ("chunk", 4096),
-            ("device", -1),
-            ("frame_id", "")
-        ])
+        self.declare_parameters(
+            "",
+            [
+                ("format", pyaudio.paInt16),
+                ("channels", 1),
+                ("rate", 16000),
+                ("chunk", 4096),
+                ("device", -1),
+                ("frame_id", ""),
+            ],
+        )
 
-        self.format = self.get_parameter(
-            "format").get_parameter_value().integer_value
-        self.channels = self.get_parameter(
-            "channels").get_parameter_value().integer_value
-        self.rate = self.get_parameter(
-            "rate").get_parameter_value().integer_value
-        self.chunk = self.get_parameter(
-            "chunk").get_parameter_value().integer_value
-        device = self.get_parameter(
-            "device").get_parameter_value().integer_value
-        self.frame_id = self.get_parameter(
-            "frame_id").get_parameter_value().string_value
+        self.format = self.get_parameter("format").get_parameter_value().integer_value
+        self.channels = (
+            self.get_parameter("channels").get_parameter_value().integer_value
+        )
+        self.rate = self.get_parameter("rate").get_parameter_value().integer_value
+        self.chunk = self.get_parameter("chunk").get_parameter_value().integer_value
+        device = self.get_parameter("device").get_parameter_value().integer_value
+        self.frame_id = (
+            self.get_parameter("frame_id").get_parameter_value().string_value
+        )
 
         if device < 0:
             device = None
@@ -70,11 +71,12 @@ class AudioCapturerNode(Node):
             rate=self.rate,
             input=True,
             frames_per_buffer=self.chunk,
-            input_device_index=device
+            input_device_index=device,
         )
 
         self.audio_pub = self.create_publisher(
-            AudioStamped, "audio", qos_profile_sensor_data)
+            AudioStamped, "audio", qos_profile_sensor_data
+        )
 
         self.get_logger().info("AudioCapturer node started")
 

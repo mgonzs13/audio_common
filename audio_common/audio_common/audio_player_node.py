@@ -39,15 +39,18 @@ class AudioPlayerNode(Node):
     def __init__(self) -> None:
         super().__init__("audio_player_node")
 
-        self.declare_parameters("", [
-            ("channels", 2),
-            ("device", -1),
-        ])
+        self.declare_parameters(
+            "",
+            [
+                ("channels", 2),
+                ("device", -1),
+            ],
+        )
 
-        self.channels = self.get_parameter(
-            "channels").get_parameter_value().integer_value
-        self.device = self.get_parameter(
-            "device").get_parameter_value().integer_value
+        self.channels = (
+            self.get_parameter("channels").get_parameter_value().integer_value
+        )
+        self.device = self.get_parameter("device").get_parameter_value().integer_value
 
         if self.device < 0:
             self.device = None
@@ -57,7 +60,8 @@ class AudioPlayerNode(Node):
 
         qos_profile = qos_profile_sensor_data
         self.sub = self.create_subscription(
-            AudioStamped, "audio", self.audio_callback, qos_profile)
+            AudioStamped, "audio", self.audio_callback, qos_profile
+        )
 
         self.get_logger().info("AudioPlayer node started")
 
@@ -77,7 +81,7 @@ class AudioPlayerNode(Node):
                 channels=self.channels,
                 rate=msg.audio.info.rate,
                 output=True,
-                output_device_index=self.device
+                output_device_index=self.device,
             )
 
         array_data = msg_to_array(msg.audio)
@@ -93,15 +97,12 @@ class AudioPlayerNode(Node):
             elif msg.audio.info.channels == 2 and self.channels == 1:
                 # stereo to mono
                 array_data = np.mean(array_data.reshape(-1, 2), axis=1)
-                array_data = array_data.astype(
-                    pyaudio_to_np[msg.audio.info.format])
+                array_data = array_data.astype(pyaudio_to_np[msg.audio.info.format])
 
         data = array_to_data(array_data)
         stream: pyaudio.PyAudio.Stream = self.stream_dict[stream_key]
         stream.write(
-            data,
-            exception_on_underflow=False,
-            num_frames=msg.audio.info.chunk
+            data, exception_on_underflow=False, num_frames=msg.audio.info.chunk
         )
 
 

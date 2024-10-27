@@ -30,7 +30,7 @@ pyaudio_to_np = {
     pyaudio.paInt32: np.int32,
     pyaudio.paInt16: np.int16,
     pyaudio.paInt8: np.int8,
-    pyaudio.paUInt8: np.uint8
+    pyaudio.paUInt8: np.uint8,
 }
 
 np_to_pyaudio = {
@@ -47,8 +47,7 @@ def data_to_array(data: bytes, audio_format: int) -> np.ndarray:
     if audio_format not in pyaudio_to_np:
         return None
 
-    return np.frombuffer(
-        data, dtype=pyaudio_to_np[audio_format])
+    return np.frombuffer(data, dtype=pyaudio_to_np[audio_format])
 
 
 def array_to_data(array: np.ndarray) -> bytes:
