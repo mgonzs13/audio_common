@@ -5,19 +5,39 @@ This repositiory provides a set of ROS 2 packages for audio. It provides a Pytho
 ## Table of Contents
 
 1. [Installation](#installation)
-2. [Nodes](#nodes)
-3. [Demos](#demos)
+2. [Docker](#docker)
+3. [Nodes](#nodes)
+4. [Demos](#demos)
 
 ## Installation
 
 ```shell
 $ cd ~/ros2_ws/src
 $ git clone https://github.com/mgonzs13/audio_common.git
-$ sudo apt install portaudio19-dev
-$ pip3 install -r audio_common/requirements.txt
 $ cd ~/ros2_ws
 $ rosdep install --from-paths src --ignore-src -r -y
+$ pip3 install -r audio_common/requirements.txt
 $ colcon build
+```
+
+## Docker
+
+You can create a docker image to test audio_common. Use the following common inside the directory of audio_common.
+
+```shell
+$ docker build -t audio_common .
+```
+
+After the image is created, run a docker container with the following command.
+
+```shell
+$ docker run -it --device /dev/snd audio_common
+```
+
+To use a shortcut, you may use following command:
+
+```shell
+$ make docker_run
 ```
 
 ## Nodes
@@ -70,7 +90,7 @@ Node to play the audio data obtained from the `audio` topic.
 
 ### music_node
 
-Node to play the music from a audio file.
+Node to play the music from a audio file in `wav` format.
 
 <details>
 <summary>Click to expand</summary>
