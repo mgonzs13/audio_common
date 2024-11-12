@@ -1,6 +1,6 @@
 # audio_capture
 
-This repositiory provides a set of ROS 2 packages for audio. It provides a Python version to capture and play audio data using pyaudio.
+This repositiory provides a set of ROS 2 packages for audio. It provides a C++ version to capture and play audio data using PortAudio.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ Node to obtain audio data from a microphone and publish it into the `audio` topi
 
 #### Parameters
 
-- **format**: Specifies the audio format to be used for capturing. Common values are `pyaudio.paInt16` (16-bit format) or other formats supported by PyAudio. Default: `pyaudio.paInt16`
+- **format**: Specifies the audio format to be used for capturing. Common values are `paInt16` (16-bit format) or other formats supported by PortAudio. Default: `paInt16`
 
 - **channels**: The number of audio channels to capture. Typically, `1` for mono and `2` for stereo. Default: `1`
 

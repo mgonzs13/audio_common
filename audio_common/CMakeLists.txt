@@ -3,37 +3,47 @@ project(audio_common)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(audio_common_msgs REQUIRED)
+find_library(PORTAUDIO_LIB portaudio REQUIRED)
 
-# Python
-ament_python_install_package(${PROJECT_NAME})
-
-install(PROGRAMS
-  audio_common/audio_capturer_node.py
-  DESTINATION lib/${PROJECT_NAME}
-  RENAME audio_capturer_node
+include_directories(
+  include
+  ${PORTAUDIO_INCLUDE_DIR}
 )
 
-install(PROGRAMS
-  audio_common/audio_player_node.py
+add_executable(audio_capturer_node src/audio_capturer_node.cpp)
+ament_target_dependencies(audio_capturer_node rclcpp audio_common_msgs)
+target_link_libraries(audio_capturer_node ${PORTAUDIO_LIB})
+install(TARGETS
+  audio_capturer_node
   DESTINATION lib/${PROJECT_NAME}
-  RENAME audio_player_node
 )
 
-install(PROGRAMS
-  audio_common/tts_node.py
+add_executable(audio_player_node src/audio_player_node.cpp)
+ament_target_dependencies(audio_player_node rclcpp audio_common_msgs)
+target_link_libraries(audio_player_node ${PORTAUDIO_LIB})
+install(TARGETS
+  audio_player_node
   DESTINATION lib/${PROJECT_NAME}
-  RENAME tts_node
 )
 
-install(PROGRAMS
-  audio_common/music_node.py
+add_executable(music_node src/wave_file.cpp src/music_node.cpp)
+ament_target_dependencies(music_node rclcpp std_srvs audio_common_msgs)
+target_link_libraries(music_node ${PORTAUDIO_LIB})
+install(TARGETS
+  music_node
   DESTINATION lib/${PROJECT_NAME}
-  RENAME music_node
 )
 
-install(
-  DIRECTORY samples
-  DESTINATION share/${PROJECT_NAME}
+add_executable(tts_node src/wave_file.cpp src/tts_node.cpp)
+ament_target_dependencies(tts_node rclcpp rclcpp_action audio_common_msgs)
+target_link_libraries(tts_node ${PORTAUDIO_LIB})
+install(TARGETS
+tts_node
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

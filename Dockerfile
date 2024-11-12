@@ -9,13 +9,8 @@ COPY . /root/ros2_ws/src
 
 # Install dependencies
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash
-RUN apt-get update \
-    && apt-get -y --quiet --no-install-recommends install \
-    git \
-    python3 \
-    python3-pip
+RUN apt-get update
 RUN rosdep install --from-paths src --ignore-src -r -y
-RUN pip3 install -r src/requirements.txt
 
 # Colcon the ws
 FROM deps AS builder
