@@ -14,7 +14,10 @@ include_directories(
   ${PORTAUDIO_INCLUDE_DIR}
 )
 
-add_executable(audio_capturer_node src/audio_capturer_node.cpp)
+add_executable(audio_capturer_node
+  src/audio_common/audio_capturer_node.cpp
+  src/audio_capturer_main.cpp
+)
 ament_target_dependencies(audio_capturer_node rclcpp audio_common_msgs)
 target_link_libraries(audio_capturer_node ${PORTAUDIO_LIB})
 install(TARGETS
@@ -22,7 +25,10 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-add_executable(audio_player_node src/audio_player_node.cpp)
+add_executable(audio_player_node
+  src/audio_common/audio_player_node.cpp
+  src/audio_player_main.cpp
+)
 ament_target_dependencies(audio_player_node rclcpp audio_common_msgs)
 target_link_libraries(audio_player_node ${PORTAUDIO_LIB})
 install(TARGETS
@@ -30,7 +36,11 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-add_executable(music_node src/wave_file.cpp src/music_node.cpp)
+add_executable(music_node
+  src/audio_common/wave_file.cpp
+  src/audio_common/music_node.cpp
+  src/music_main.cpp
+)
 ament_target_dependencies(music_node rclcpp std_srvs audio_common_msgs)
 target_link_libraries(music_node ${PORTAUDIO_LIB})
 install(TARGETS
@@ -38,7 +48,11 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-add_executable(tts_node src/wave_file.cpp src/tts_node.cpp)
+add_executable(tts_node
+  src/audio_common/wave_file.cpp
+  src/audio_common/tts_node.cpp
+  src/tts_main.cpp
+)
 ament_target_dependencies(tts_node rclcpp rclcpp_action audio_common_msgs)
 target_link_libraries(tts_node ${PORTAUDIO_LIB})
 install(TARGETS

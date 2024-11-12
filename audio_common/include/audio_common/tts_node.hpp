@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023  Miguel Ángel González Santamarta
+// Copyright (c) 2024  Miguel Ángel González Santamarta
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,12 +44,12 @@
 
 namespace audio_common {
 
-class AudioCapturerNode : public rclcpp::Node {
+class TtsNode : public rclcpp::Node {
 public:
   using TTS = audio_common_msgs::action::TTS;
   using GoalHandleTTS = rclcpp_action::ServerGoalHandle<TTS>;
 
-  AudioCapturerNode();
+  TtsNode();
 
 private:
   int chunk_;

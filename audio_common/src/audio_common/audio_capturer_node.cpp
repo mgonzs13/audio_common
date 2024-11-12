@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023  Miguel Ángel González Santamarta
+// Copyright (c) 2024  Miguel Ángel González Santamarta
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,8 @@
 // SOFTWARE.
 
 #include <memory>
-
 #include <portaudio.h>
-
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 
 #include "audio_common/audio_capturer_node.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
@@ -141,12 +139,4 @@ template <typename T> std::vector<T> AudioCapturerNode::read_data() {
   std::vector<T> data(this->chunk_ * this->channels_);
   Pa_ReadStream(this->stream_, data.data(), this->chunk_);
   return data;
-}
-
-int main(int argc, char *argv[]) {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<AudioCapturerNode>();
-  node->work();
-  rclcpp::shutdown();
-  return 0;
 }

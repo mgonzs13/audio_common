@@ -18,8 +18,7 @@ using namespace std::chrono_literals;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-AudioCapturerNode::AudioCapturerNode()
-    : Node("tts_node"), chunk_(4096), frame_id_("") {
+TtsNode::TtsNode() : Node("tts_node"), chunk_(4096), frame_id_("") {
 
   this->declare_parameter("chunk", 4096);
   this->declare_parameter("frame_id", "");
@@ -34,28 +33,28 @@ AudioCapturerNode::AudioCapturerNode()
 
   // Action server
   action_server_ = rclcpp_action::create_server<TTS>(
-      this, "say", std::bind(&AudioCapturerNode::handle_goal, this, _1, _2),
-      std::bind(&AudioCapturerNode::handle_cancel, this, _1),
-      std::bind(&AudioCapturerNode::handle_accepted, this, _1));
+      this, "say", std::bind(&TtsNode::handle_goal, this, _1, _2),
+      std::bind(&TtsNode::handle_cancel, this, _1),
+      std::bind(&TtsNode::handle_accepted, this, _1));
 
   RCLCPP_INFO(this->get_logger(), "TTS node started");
 }
 
 rclcpp_action::GoalResponse
-AudioCapturerNode::handle_goal(const rclcpp_action::GoalUUID &uuid,
-                               std::shared_ptr<const TTS::Goal> goal) {
+TtsNode::handle_goal(const rclcpp_action::GoalUUID &uuid,
+                     std::shared_ptr<const TTS::Goal> goal) {
   (void)uuid;
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse AudioCapturerNode::handle_cancel(
-    const std::shared_ptr<GoalHandleTTS> goal_handle) {
+rclcpp_action::CancelResponse
+TtsNode::handle_cancel(const std::shared_ptr<GoalHandleTTS> goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Canceling TTS...");
   (void)goal_handle;
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void AudioCapturerNode::handle_accepted(
+void TtsNode::handle_accepted(
     const std::shared_ptr<GoalHandleTTS> goal_handle) {
   std::unique_lock<std::mutex> lock(this->goal_lock_);
   if (this->goal_handle_ != nullptr && this->goal_handle_->is_active()) {
@@ -64,12 +63,11 @@ void AudioCapturerNode::handle_accepted(
     this->goal_handle_ = goal_handle;
   }
 
-  std::thread{std::bind(&AudioCapturerNode::execute_callback, this, _1),
-              goal_handle}
+  std::thread{std::bind(&TtsNode::execute_callback, this, _1), goal_handle}
       .detach();
 }
 
-void AudioCapturerNode::execute_callback(
+void TtsNode::execute_callback(
     const std::shared_ptr<GoalHandleTTS> goal_handle) {
   auto result = std::make_shared<TTS::Result>();
   const auto goal = goal_handle->get_goal();
@@ -134,12 +132,4 @@ void AudioCapturerNode::execute_callback(
 
   result->text = text;
   goal_handle->succeed(result);
-}
-
-int main(int argc, char *argv[]) {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<AudioCapturerNode>();
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  return 0;
 }

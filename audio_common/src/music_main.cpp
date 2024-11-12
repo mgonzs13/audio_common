@@ -20,38 +20,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef AUDIO_COMMON__AUDIO_CAPTURER_NODE
-#define AUDIO_COMMON__AUDIO_CAPTURER_NODE
-
-#include <memory>
-#include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
 
-#include "audio_common_msgs/msg/audio_stamped.hpp"
+#include "audio_common/music_node.hpp"
 
-namespace audio_common {
-
-class AudioCapturerNode : public rclcpp::Node {
-public:
-  AudioCapturerNode();
-  ~AudioCapturerNode() override;
-
-  void work();
-
-private:
-  PaStream *stream_;
-  int format_;
-  int channels_;
-  int rate_;
-  int chunk_;
-  std::string frame_id_;
-
-  rclcpp::Publisher<audio_common_msgs::msg::AudioStamped>::SharedPtr audio_pub_;
-
-  // Methods
-  template <typename T> std::vector<T> read_data();
-};
-
-} // namespace audio_common
-
-#endif
+int main(int argc, char **argv) {
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<audio_common::MusicNode>();
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+  return 0;
+}

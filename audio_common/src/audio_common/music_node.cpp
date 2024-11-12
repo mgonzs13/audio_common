@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023  Miguel Ángel González Santamarta
+// Copyright (c) 2024  Miguel Ángel González Santamarta
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -207,12 +207,4 @@ void MusicNode::stop_callback(
     RCLCPP_WARN(this->get_logger(), "No music to stop");
     response->success = false;
   }
-}
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<MusicNode>();
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  return 0;
 }

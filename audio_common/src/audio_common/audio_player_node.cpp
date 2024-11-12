@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023  Miguel Ángel González Santamarta
+// Copyright (c) 2024  Miguel Ángel González Santamarta
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,7 @@
 #include <vector>
 
 #include <portaudio.h>
-
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 
 #include "audio_common/audio_player_node.hpp"
 #include "audio_common_msgs/msg/audio.hpp"
@@ -182,12 +181,4 @@ void AudioPlayerNode::write_data(const std::vector<T> &input_data, int channels,
     RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
                  Pa_GetErrorText(err));
   }
-}
-
-int main(int argc, char *argv[]) {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<AudioPlayerNode>();
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  return 0;
 }
