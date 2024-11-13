@@ -67,7 +67,7 @@ private:
 
   // Methods
   void publish_audio(const std::string &file_path);
-  void playCallback(
+  void play_callback(
       const std::shared_ptr<audio_common_msgs::srv::MusicPlay::Request> request,
       std::shared_ptr<audio_common_msgs::srv::MusicPlay::Response> response);
   void

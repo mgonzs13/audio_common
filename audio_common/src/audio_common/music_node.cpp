@@ -58,7 +58,7 @@ MusicNode::MusicNode()
 
   // Services
   this->play_service_ = this->create_service<audio_common_msgs::srv::MusicPlay>(
-      "music_play", std::bind(&MusicNode::playCallback, this, _1, _2));
+      "music_play", std::bind(&MusicNode::play_callback, this, _1, _2));
   this->stop_service_ = this->create_service<std_srvs::srv::Trigger>(
       "music_stop", std::bind(&MusicNode::stop_callback, this, _1, _2));
   this->pause_service_ = this->create_service<std_srvs::srv::Trigger>(
@@ -89,7 +89,7 @@ void MusicNode::publish_audio(const std::string &file_path) {
 
   // Create rate
   std::chrono::nanoseconds period(
-      (int)(1e9 * this->chunk_ / wf.getSampleRate()));
+      (int)(1e9 * this->chunk_ / wf.get_sample_rate()));
   rclcpp::Rate pub_rate(period);
   std::vector<float> data(this->chunk_);
 
@@ -100,10 +100,10 @@ void MusicNode::publish_audio(const std::string &file_path) {
       msg.header.frame_id = this->frame_id_;
       msg.header.stamp = this->get_clock()->now();
       msg.audio.audio_data.float32_data = data;
-      msg.audio.info.channels = wf.getNumChannels();
+      msg.audio.info.channels = wf.get_num_channels();
       msg.audio.info.chunk = this->chunk_;
       msg.audio.info.format = 1;
-      msg.audio.info.rate = wf.getSampleRate();
+      msg.audio.info.rate = wf.get_sample_rate();
 
       this->player_pub_->publish(msg);
       pub_rate.sleep();
@@ -127,7 +127,7 @@ void MusicNode::publish_audio(const std::string &file_path) {
   this->is_thread_alive_ = false;
 }
 
-void MusicNode::playCallback(
+void MusicNode::play_callback(
     const std::shared_ptr<audio_common_msgs::srv::MusicPlay::Request> request,
     std::shared_ptr<audio_common_msgs::srv::MusicPlay::Response> response) {
 

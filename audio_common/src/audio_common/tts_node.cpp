@@ -94,7 +94,7 @@ void TtsNode::execute_callback(
 
   // Create rate
   std::chrono::nanoseconds period(
-      (int)(1e9 * this->chunk_ / wf.getSampleRate()));
+      (int)(1e9 * this->chunk_ / wf.get_sample_rate()));
   rclcpp::Rate pub_rate(period);
   std::vector<float> data(this->chunk_);
 
@@ -118,10 +118,10 @@ void TtsNode::execute_callback(
     msg.header.frame_id = this->frame_id_;
     msg.header.stamp = this->get_clock()->now();
     msg.audio.audio_data.float32_data = data;
-    msg.audio.info.channels = wf.getNumChannels();
+    msg.audio.info.channels = wf.get_num_channels();
     msg.audio.info.chunk = this->chunk_;
     msg.audio.info.format = 1;
-    msg.audio.info.rate = wf.getSampleRate();
+    msg.audio.info.rate = wf.get_sample_rate();
 
     this->player_pub_->publish(msg);
     pub_rate.sleep();

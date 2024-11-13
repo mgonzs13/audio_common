@@ -37,9 +37,9 @@ public:
   bool open();
   void rewind();
   bool read(std::vector<float> &buffer, size_t size);
-  int getSampleRate() const { return this->sample_rate_; }
-  int getNumChannels() const { return this->channels_; }
-  int getBitsPerSample() const { return this->bits_per_sample_; }
+  int get_sample_rate() const { return this->sample_rate_; }
+  int get_num_channels() const { return this->channels_; }
+  int get_bits_per_sample() const { return this->bits_per_sample_; }
 
 private:
   std::string filepath_;
