@@ -3,6 +3,7 @@ project(audio_common)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -41,7 +42,7 @@ add_executable(music_node
   src/audio_common/music_node.cpp
   src/music_main.cpp
 )
-ament_target_dependencies(music_node rclcpp std_srvs audio_common_msgs)
+ament_target_dependencies(music_node rclcpp std_srvs audio_common_msgs ament_index_cpp)
 target_link_libraries(music_node ${PORTAUDIO_LIB})
 install(TARGETS
   music_node
@@ -56,7 +57,7 @@ add_executable(tts_node
 ament_target_dependencies(tts_node rclcpp rclcpp_action audio_common_msgs)
 target_link_libraries(tts_node ${PORTAUDIO_LIB})
 install(TARGETS
-tts_node
+  tts_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
