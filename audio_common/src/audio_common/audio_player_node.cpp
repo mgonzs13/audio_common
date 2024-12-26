@@ -80,7 +80,7 @@ void AudioPlayerNode::audio_callback(
                            std::to_string(this->channels_);
 
   // Check if stream already exists, if not, create one
-  if (stream_dict_.find(stream_key) == stream_dict_.end()) {
+  if (this->stream_dict_.find(stream_key) == this->stream_dict_.end()) {
     PaStreamParameters outputParameters;
     outputParameters.device =
         (this->device_ >= 0) ? this->device_ : Pa_GetDefaultOutputDevice();
@@ -90,17 +90,17 @@ void AudioPlayerNode::audio_callback(
         Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
     outputParameters.hostApiSpecificStreamInfo = nullptr;
 
-    PaError err =
-        Pa_OpenStream(&stream_dict_[stream_key], nullptr, &outputParameters,
-                      msg->audio.info.rate, paFramesPerBufferUnspecified,
-                      paClipOff, nullptr, nullptr);
+    PaError err = Pa_OpenStream(&this->stream_dict_[stream_key], nullptr,
+                                &outputParameters, msg->audio.info.rate,
+                                paFramesPerBufferUnspecified, paClipOff,
+                                nullptr, nullptr);
 
     if (err != paNoError) {
       RCLCPP_ERROR(this->get_logger(), "Failed to open audio stream: %s",
                    Pa_GetErrorText(err));
       return;
     }
-    Pa_StartStream(stream_dict_[stream_key]);
+    Pa_StartStream(this->stream_dict_[stream_key]);
   }
 
   // Convert ROS message to array

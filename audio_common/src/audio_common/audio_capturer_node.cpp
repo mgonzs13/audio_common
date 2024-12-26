@@ -102,23 +102,23 @@ void AudioCapturerNode::work() {
 
     switch (this->format_) {
     case paFloat32: {
-      msg.audio.audio_data.float32_data = read_data<float>();
+      msg.audio.audio_data.float32_data = this->read_data<float>();
       break;
     }
     case paInt32: {
-      msg.audio.audio_data.int32_data = read_data<int32_t>();
+      msg.audio.audio_data.int32_data = this->read_data<int32_t>();
       break;
     }
     case paInt16: {
-      msg.audio.audio_data.int16_data = read_data<int16_t>();
+      msg.audio.audio_data.int16_data = this->read_data<int16_t>();
       break;
     }
     case paInt8: {
-      msg.audio.audio_data.int8_data = read_data<int8_t>();
+      msg.audio.audio_data.int8_data = this->read_data<int8_t>();
       break;
     }
     case paUInt8: {
-      msg.audio.audio_data.uint8_data = read_data<uint8_t>();
+      msg.audio.audio_data.uint8_data = this->read_data<uint8_t>();
       break;
     }
     default:

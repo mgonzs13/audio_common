@@ -18,21 +18,20 @@ using namespace std::chrono_literals;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-TtsNode::TtsNode() : Node("tts_node"), chunk_(4096), frame_id_("") {
+TtsNode::TtsNode() : Node("tts_node") {
 
   this->declare_parameter("chunk", 4096);
   this->declare_parameter("frame_id", "");
 
-  chunk_ = this->get_parameter("chunk").as_int();
-  frame_id_ = this->get_parameter("frame_id").as_string();
+  this->chunk_ = this->get_parameter("chunk").as_int();
+  this->frame_id_ = this->get_parameter("frame_id").as_string();
 
-  espeak_cmd_ = "espeak -v%s -s%d -a%d -w %s '%s'";
-
-  player_pub_ = this->create_publisher<audio_common_msgs::msg::AudioStamped>(
-      "audio", rclcpp::SensorDataQoS());
+  this->player_pub_ =
+      this->create_publisher<audio_common_msgs::msg::AudioStamped>(
+          "audio", rclcpp::SensorDataQoS());
 
   // Action server
-  action_server_ = rclcpp_action::create_server<TTS>(
+  this->action_server_ = rclcpp_action::create_server<TTS>(
       this, "say", std::bind(&TtsNode::handle_goal, this, _1, _2),
       std::bind(&TtsNode::handle_cancel, this, _1),
       std::bind(&TtsNode::handle_accepted, this, _1));

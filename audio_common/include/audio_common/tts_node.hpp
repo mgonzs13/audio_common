@@ -54,7 +54,6 @@ public:
 private:
   int chunk_;
   std::string frame_id_;
-  std::string espeak_cmd_;
   rclcpp::Publisher<audio_common_msgs::msg::AudioStamped>::SharedPtr
       player_pub_;
   rclcpp_action::Server<TTS>::SharedPtr action_server_;
