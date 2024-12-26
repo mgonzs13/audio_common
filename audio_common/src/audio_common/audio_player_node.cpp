@@ -103,7 +103,7 @@ void AudioPlayerNode::audio_callback(
     Pa_StartStream(this->stream_dict_[stream_key]);
   }
 
-  // Convert ROS message to array
+  // Write audio from ROS 2 msg
   switch (msg->audio.info.format) {
   case paFloat32:
     this->write_data(msg->audio.audio_data.float32_data,
