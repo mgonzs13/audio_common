@@ -26,4 +26,4 @@ jobs:
         with:
           build-args: ROS_DISTRO=humble
           push: true
-          tags: mgons/piper_ros:humble
+          tags: mgons/audio_common:humble

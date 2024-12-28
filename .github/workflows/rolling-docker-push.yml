@@ -26,4 +26,4 @@ jobs:
         with:
           build-args: ROS_DISTRO=rolling
           push: true
-          tags: mgons/piper_ros:rolling
+          tags: mgons/audio_common:rolling

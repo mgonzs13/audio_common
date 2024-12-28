@@ -26,4 +26,4 @@ jobs:
         with:
           build-args: ROS_DISTRO=foxy
           push: true
-          tags: mgons/piper_ros:foxy
+          tags: mgons/audio_common:foxy

@@ -26,4 +26,4 @@ jobs:
         with:
           build-args: ROS_DISTRO=galactic
           push: true
-          tags: mgons/piper_ros:galactic
+          tags: mgons/audio_common:galactic

@@ -26,4 +26,4 @@ jobs:
         with:
           build-args: ROS_DISTRO=iron
           push: true
-          tags: mgons/piper_ros:iron
+          tags: mgons/audio_common:iron
