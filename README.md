@@ -44,13 +44,7 @@ docker build -t audio_common .
 After the image is created, run a docker container with the following command.
 
 ```shell
-docker run -it --device /dev/snd audio_common
-```
-
-To use a shortcut, you may use following command:
-
-```shell
-make docker_run
+docker run -it --rm --device /dev/snd audio_common
 ```
 
 ## Nodes
