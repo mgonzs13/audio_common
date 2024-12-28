@@ -12,12 +12,12 @@ This repositiory provides a set of ROS 2 packages for audio. It provides a C++ v
 ## Installation
 
 ```shell
-$ cd ~/ros2_ws/src
-$ git clone https://github.com/mgonzs13/audio_common.git
-$ cd ~/ros2_ws
-$ rosdep install --from-paths src --ignore-src -r -y
-$ pip3 install -r audio_common/requirements.txt
-$ colcon build
+cd ~/ros2_ws/src
+git clone https://github.com/mgonzs13/audio_common.git
+cd ~/ros2_ws
+rosdep install --from-paths src --ignore-src -r -y
+pip3 install -r audio_common/requirements.txt
+colcon build
 ```
 
 ## Docker
@@ -25,19 +25,19 @@ $ colcon build
 You can create a docker image to test audio_common. Use the following common inside the directory of audio_common.
 
 ```shell
-$ docker build -t audio_common .
+docker build -t audio_common .
 ```
 
 After the image is created, run a docker container with the following command.
 
 ```shell
-$ docker run -it --device /dev/snd audio_common
+docker run -it --device /dev/snd audio_common
 ```
 
 To use a shortcut, you may use following command:
 
 ```shell
-$ make docker_run
+make docker_run
 ```
 
 ## Nodes
@@ -133,37 +133,37 @@ Node to generate audio from a text (TTS).
 ### Audio Capturer/Player
 
 ```shell
-$ ros2 run audio_common audio_capturer_node
+ros2 run audio_common audio_capturer_node
 ```
 
 ```shell
-$ ros2 run audio_common audio_player_node
+ros2 run audio_common audio_player_node
 ```
 
 ### TTS
 
 ```shell
-$ ros2 run audio_common tts_node
+ros2 run audio_common tts_node
 ```
 
 ```shell
-$ ros2 run audio_common audio_player_node
+ros2 run audio_common audio_player_node
 ```
 
 ```shell
-$ ros2 action send_goal /say audio_common_msgs/action/TTS "{'text': 'Hello World'}"
+ros2 action send_goal /say audio_common_msgs/action/TTS "{'text': 'Hello World'}"
 ```
 
 ### Music Player
 
 ```shell
-$ ros2 run audio_common music_node
+ros2 run audio_common music_node
 ```
 
 ```shell
-$ ros2 run audio_common audio_player_node
+ros2 run audio_common audio_player_node
 ```
 
 ```shell
-$ ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{audio: 'elevator'}"
+ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{audio: 'elevator'}"
 ```
