@@ -99,8 +99,7 @@ void TtsNode::execute_callback(
 
   // Initialize the audio message
   audio_common_msgs::msg::AudioStamped msg;
-  msg.header.frame_id = frame_id_;
-  msg.header.stamp = this->get_clock()->now();
+  msg.header.frame_id = this->frame_id_;
 
   // Publish the audio data in chunks
   while (wf.read(data, this->chunk_)) {
@@ -114,7 +113,6 @@ void TtsNode::execute_callback(
     }
 
     auto msg = audio_common_msgs::msg::AudioStamped();
-    msg.header.frame_id = this->frame_id_;
     msg.header.stamp = this->get_clock()->now();
     msg.audio.audio_data.float32_data = data;
     msg.audio.info.channels = wf.get_num_channels();

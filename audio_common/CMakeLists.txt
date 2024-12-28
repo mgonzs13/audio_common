@@ -15,6 +15,7 @@ include_directories(
   ${PORTAUDIO_INCLUDE_DIR}
 )
 
+# audio_capturer__node
 add_executable(audio_capturer_node
   src/audio_common/audio_capturer_node.cpp
   src/audio_capturer_main.cpp
@@ -26,6 +27,7 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# audio_player_node
 add_executable(audio_player_node
   src/audio_common/audio_player_node.cpp
   src/audio_player_main.cpp
@@ -37,6 +39,7 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# music_node
 add_executable(music_node
   src/audio_common/wave_file.cpp
   src/audio_common/music_node.cpp
@@ -49,6 +52,12 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(DIRECTORY
+  samples
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# tts node
 add_executable(tts_node
   src/audio_common/wave_file.cpp
   src/audio_common/tts_node.cpp
@@ -61,9 +70,27 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY
-  samples
-  DESTINATION share/${PROJECT_NAME}
+# Create lib
+set(LIB ${CMAKE_PROJECT_NAME}_lib)
+set(SOURCES
+  src/audio_common/wave_file.cpp
 )
+
+add_library(${LIB} STATIC ${SOURCES})
+ament_target_dependencies(${LIB} ${DEPENDENCIES})
+
+install(TARGETS ${LIB}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
+ament_export_dependencies(${DEPENDENCIES})
+ament_export_include_directories(include)
+ament_export_libraries(${LIB})
 
 ament_package()
