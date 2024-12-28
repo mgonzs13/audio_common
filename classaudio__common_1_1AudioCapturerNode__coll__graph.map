@@ -1,0 +1,9 @@
+<map id="audio_common::AudioCapturerNode" name="audio_common::AudioCapturerNode">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,184,234,210"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="36,95,129,121"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="96,134,117,183,112,185,91,136"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="153,95,230,121"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="174,135,131,185,127,182,170,131"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="130,5,253,46"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="194,61,194,95,189,95,189,61"/>
+</map>

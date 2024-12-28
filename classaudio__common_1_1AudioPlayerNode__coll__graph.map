@@ -1,0 +1,11 @@
+<map id="audio_common::AudioPlayerNode" name="audio_common::AudioPlayerNode">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,288,221,313"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="45,192,138,217"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="100,232,113,287,108,288,95,233"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="163,184,335,225"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="210,236,132,289,129,285,207,231"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="210,95,288,121"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="252,136,252,183,246,183,246,136"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="187,5,311,46"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="252,61,252,95,246,95,246,61"/>
+</map>

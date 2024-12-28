@@ -1,0 +1,9 @@
+<map id="audio_common/include/audio_common/wave_file.hpp" name="audio_common/include/audio_common/wave_file.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="24,5,220,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,94,71,120"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="103,48,64,85,60,81,99,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="95,94,149,120"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="125,46,125,78,119,78,119,46"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="173,94,231,120"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="144,45,181,81,177,85,140,48"/>
+</map>
