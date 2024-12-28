@@ -123,9 +123,7 @@ Docker</h1>
 <p>You can create a docker image to test <a class="el" href="namespaceaudio__common.html">audio_common</a>. Use the following common inside the directory of <a class="el" href="namespaceaudio__common.html">audio_common</a>.</p>
 <div class="fragment"><div class="line">docker build -t audio_common .</div>
 </div><!-- fragment --><p>After the image is created, run a docker container with the following command.</p>
-<div class="fragment"><div class="line">docker run -it --device /dev/snd audio_common</div>
-</div><!-- fragment --><p>To use a shortcut, you may use following command:</p>
-<div class="fragment"><div class="line">make docker_run</div>
+<div class="fragment"><div class="line">docker run -it --rm --device /dev/snd audio_common</div>
 </div><!-- fragment --><h1><a class="anchor" id="autotoc_md4"></a>
 Nodes</h1>
 <h2><a class="anchor" id="autotoc_md5"></a>
