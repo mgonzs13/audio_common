@@ -85,7 +85,7 @@ Node to play the audio data obtained from the `audio` topic.
 
 #### Parameters
 
-- **channels**: The number of audio channels to capture. Typically, `1` for mono and `2` for stereo. Default: `1`
+- **channels**: The number of audio channels to capture. Typically, `1` for mono and `2` for stereo. Default: `2`
 
 - **device**: The ID of the audio input device. A value of `-1` indicates that the default audio input device should be used. Default: `-1`
 
@@ -110,7 +110,7 @@ Node to play the music from a audio file in `wav` format.
 
 #### ROS 2 Interfaces
 
-- **audio**: Topic subscriber to get the audio data captured to be played. Type: `audio_common_msgs/msg/AudioStamped`
+- **audio**: Topic to publish the audio data from the files. Type: `audio_common_msgs/msg/AudioStamped`
 
 </details>
 
