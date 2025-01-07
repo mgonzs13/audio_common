@@ -72,8 +72,8 @@ void TtsNode::execute_callback(
   const auto goal = goal_handle->get_goal();
   std::string text = goal->text;
   std::string language = goal->language;
-  int rate = static_cast<int>(goal->rate * 350);
-  int volume = static_cast<int>(goal->volume * 200);
+  int rate = static_cast<int>(goal->rate * 175);
+  int volume = static_cast<int>(goal->volume * 100);
 
   // Create audio file using espeak
   char temp_file[] = "/tmp/tts_audio.wav";
