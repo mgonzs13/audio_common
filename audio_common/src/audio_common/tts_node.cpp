@@ -120,7 +120,11 @@ void TtsNode::execute_callback(
     msg.audio.info.format = 1;
     msg.audio.info.rate = wf.get_sample_rate();
 
+    auto feedback = std::make_shared<TTS::Feedback>();
+    feedback->audio = msg;
+
     this->player_pub_->publish(msg);
+    goal_handle->publish_feedback(feedback);
     pub_rate.sleep();
   }
 

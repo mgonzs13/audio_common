@@ -5,3 +5,4 @@ float32 rate 0.5
 ---
 string text
 ---
+audio_common_msgs/AudioStamped audio
