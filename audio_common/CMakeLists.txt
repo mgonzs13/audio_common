@@ -89,6 +89,11 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_clang_format REQUIRED)
+  ament_clang_format(CONFIG_FILE .clang-format)
+endif()
+
 ament_export_dependencies(${DEPENDENCIES})
 ament_export_include_directories(include)
 ament_export_libraries(${LIB})
