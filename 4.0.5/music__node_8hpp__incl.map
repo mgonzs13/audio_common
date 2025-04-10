@@ -1,0 +1,21 @@
+<map id="audio_common/include/audio_common/music_node.hpp" name="audio_common/include/audio_common/music_node.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="322,5,533,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,102,66,127"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="322,44,204,65,79,97,75,98,73,93,77,91,203,59,321,38"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="90,102,146,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="330,49,246,70,159,97,156,97,155,92,157,91,244,65,328,44"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="170,102,224,127"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="366,49,236,96,235,97,233,92,235,92,364,44"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="248,102,306,127"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="395,49,312,96,310,91,392,44"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="329,94,526,135"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="430,47,430,78,425,78,425,47"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="550,94,727,135"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="476,44,577,85,575,90,474,49"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="750,94,921,135"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="521,44,735,89,734,94,520,49"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="945,102,1064,127"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="534,34,721,57,933,91,948,95,947,100,932,97,720,62,533,40"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="1089,102,1246,127"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="534,32,782,54,930,71,1077,91,1100,95,1099,101,1076,97,929,76,782,60,533,37"/>
+</map>
