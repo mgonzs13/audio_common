@@ -68,6 +68,8 @@ Node to obtain audio data from a microphone and publish it into the `audio` topi
   
   Default: `8` (paInt16)
 
+  The integer values correspond to PortAudio sample format flags.
+
 - **channels**: The number of audio channels to capture. Typically, `1` for mono and `2` for stereo. Default: `1`
 
 - **rate**: The sample rate that is how many samples per second should be captured. Default: `16000`
