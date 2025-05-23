@@ -20,8 +20,11 @@ add_executable(audio_capturer_node
   src/audio_common/audio_capturer_node.cpp
   src/audio_capturer_main.cpp
 )
-ament_target_dependencies(audio_capturer_node rclcpp audio_common_msgs)
-target_link_libraries(audio_capturer_node ${PORTAUDIO_LIB})
+target_link_libraries(audio_capturer_node
+  ${audio_common_msgs_TARGETS}
+  ${PORTAUDIO_LIB}
+  rclcpp::rclcpp
+)
 install(TARGETS
   audio_capturer_node
   DESTINATION lib/${PROJECT_NAME}
@@ -32,8 +35,11 @@ add_executable(audio_player_node
   src/audio_common/audio_player_node.cpp
   src/audio_player_main.cpp
 )
-ament_target_dependencies(audio_player_node rclcpp audio_common_msgs)
-target_link_libraries(audio_player_node ${PORTAUDIO_LIB})
+target_link_libraries(audio_player_node
+  ${audio_common_msgs_TARGETS}
+  ${PORTAUDIO_LIB}
+  rclcpp::rclcpp
+)
 install(TARGETS
   audio_player_node
   DESTINATION lib/${PROJECT_NAME}
@@ -45,8 +51,14 @@ add_executable(music_node
   src/audio_common/music_node.cpp
   src/music_main.cpp
 )
-ament_target_dependencies(music_node rclcpp std_srvs audio_common_msgs ament_index_cpp)
-target_link_libraries(music_node ${PORTAUDIO_LIB})
+target_link_libraries(music_node
+  ament_index_cpp::ament_index_cpp
+  ${audio_common_msgs_TARGETS}
+  ${PORTAUDIO_LIB}
+  rclcpp::rclcpp
+  ${std_srvs_TARGETS}
+)
+
 install(TARGETS
   music_node
   DESTINATION lib/${PROJECT_NAME}
@@ -63,8 +75,12 @@ add_executable(tts_node
   src/audio_common/tts_node.cpp
   src/tts_main.cpp
 )
-ament_target_dependencies(tts_node rclcpp rclcpp_action audio_common_msgs)
-target_link_libraries(tts_node ${PORTAUDIO_LIB})
+target_link_libraries(tts_node
+  ${audio_common_msgs_TARGETS}
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  ${PORTAUDIO_LIB}
+)
 install(TARGETS
   tts_node
   DESTINATION lib/${PROJECT_NAME}
@@ -77,7 +93,7 @@ set(SOURCES
 )
 
 add_library(${LIB} STATIC ${SOURCES})
-ament_target_dependencies(${LIB} ${DEPENDENCIES})
+target_link_libraries(${LIB} ${DEPENDENCIES})
 
 install(TARGETS ${LIB}
   ARCHIVE DESTINATION lib
