@@ -13,6 +13,7 @@ This repositiory provides a set of ROS 2 packages for audio. It provides a C++ v
 |  **Humble**  | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |    [![Humble Build](https://github.com/mgonzs13/audio_common/actions/workflows/humble-docker-build.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/humble-docker-build.yml?branch=main)    |   [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-humble-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=humble)   | [![Doxygen Deployment](https://github.com/mgonzs13/audio_common/actions/workflows/doxygen-deployment.yml/badge.svg)](https://mgonzs13.github.io/audio_common/latest) |
 |   **Iron**   | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |       [![Iron Build](https://github.com/mgonzs13/audio_common/actions/workflows/iron-docker-build.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/iron-docker-build.yml?branch=main)       |     [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-iron-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=iron)     | [![Doxygen Deployment](https://github.com/mgonzs13/audio_common/actions/workflows/doxygen-deployment.yml/badge.svg)](https://mgonzs13.github.io/audio_common/latest) |
 |  **Jazzy**   | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |     [![Jazzy Build](https://github.com/mgonzs13/audio_common/actions/workflows/jazzy-docker-build.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/jazzy-docker-build.yml?branch=main)      |    [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-jazzy-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=jazzy)    | [![Doxygen Deployment](https://github.com/mgonzs13/audio_common/actions/workflows/doxygen-deployment.yml/badge.svg)](https://mgonzs13.github.io/audio_common/latest) |
+|  **Kilted**  | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |    [![Kilted Build](https://github.com/mgonzs13/audio_common/actions/workflows/kilted-docker-build.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/kilted-docker-build.yml?branch=main)    |   [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-kilted-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=kilted)   | [![Doxygen Deployment](https://github.com/mgonzs13/audio_common/actions/workflows/doxygen-deployment.yml/badge.svg)](https://mgonzs13.github.io/audio_common/latest) |
 | **Rolling**  | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |  [![Rolling Build](https://github.com/mgonzs13/audio_common/actions/workflows/rolling-docker-build.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/rolling-docker-build.yml?branch=main)   |  [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-rolling-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=rolling)  | [![Doxygen Deployment](https://github.com/mgonzs13/audio_common/actions/workflows/doxygen-deployment.yml/badge.svg)](https://mgonzs13.github.io/audio_common/latest) |
 
 </div>
@@ -60,12 +61,13 @@ Node to obtain audio data from a microphone and publish it into the `audio` topi
 #### Parameters
 
 - **format**: Specifies the audio format to be used for capturing. Possible values are:
+
   - `1` (paFloat32 - 32-bit floating point)
   - `2` (paInt32 - 32-bit integer)
   - `8` (paInt16 - 16-bit integer)
   - `16` (paInt8 - 8-bit integer)
   - `32` (paUInt8 - 8-bit unsigned integer)
-  
+
   Default: `8` (paInt16)
 
   The integer values correspond to PortAudio sample format flags.
@@ -96,6 +98,7 @@ Node to play the audio data obtained from the `audio` topic.
 #### Parameters
 
 - **channels**: The number of audio channels to play. Typically, `1` for mono and `2` for stereo. Default: `2`
+
   - The node automatically handles conversion between mono and stereo formats if needed.
 
 - **device**: The ID of the audio output device. A value of `-1` indicates that the default audio output device should be used. Default: `-1`
@@ -124,6 +127,7 @@ Node to play music from audio files in `wav` format.
 - **audio**: Topic to publish the audio data from the files. Type: `audio_common_msgs/msg/AudioStamped`
 
 - **music_play**: Service to play audio files. Type: `audio_common_msgs/srv/MusicPlay`
+
   - Parameters:
     - `audio`: Name of a built-in audio sample (e.g., "elevator")
     - `file_path`: Path to a custom WAV file (ignored if audio is specified)
@@ -194,6 +198,7 @@ ros2 action send_goal /say audio_common_msgs/action/TTS "{'text': 'Hello World'}
 ```
 
 Advanced TTS example with additional parameters:
+
 ```shell
 ros2 action send_goal /say audio_common_msgs/action/TTS "{'text': 'Hello World', 'language': 'en-us', 'volume': 0.8, 'rate': 1.2}"
 ```
@@ -209,21 +214,25 @@ ros2 run audio_common audio_player_node
 ```
 
 Play a built-in sample:
+
 ```shell
 ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{audio: 'elevator'}"
 ```
 
 Play a custom WAV file:
+
 ```shell
 ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{file_path: '/path/to/your/file.wav'}"
 ```
 
 Play with looping enabled:
+
 ```shell
 ros2 service call /music_play audio_common_msgs/srv/MusicPlay "{audio: 'elevator', loop: true}"
 ```
 
 Control playback:
+
 ```shell
 ros2 service call /music_pause std_srvs/srv/Trigger "{}"
 ros2 service call /music_resume std_srvs/srv/Trigger "{}"
