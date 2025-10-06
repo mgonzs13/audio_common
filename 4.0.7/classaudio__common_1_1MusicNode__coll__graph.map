@@ -1,0 +1,15 @@
+<map id="audio_common::MusicNode" name="audio_common::MusicNode">
+<area shape="rect" id="Node000001" title=" " alt="" coords="199,214,380,240"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,95,99,121"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="82,128,128,158,181,188,245,211,243,216,179,192,125,163,79,133"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="123,95,200,121"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="179,132,199,161,226,188,263,211,260,216,222,192,195,164,174,136"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="100,5,223,46"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="164,61,164,95,159,95,159,61"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="224,95,354,121"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="292,137,292,213,287,213,287,137"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="378,95,459,121"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="417,137,408,166,390,192,371,206,349,216,347,211,368,201,386,188,403,163,412,136"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="502,95,583,121"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="542,137,532,166,512,192,490,203,458,212,380,223,380,217,457,207,488,198,509,188,527,164,536,135"/>
+</map>
