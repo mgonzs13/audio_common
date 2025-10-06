@@ -174,11 +174,29 @@ void AudioPlayerNode::write_data(const std::vector<T> &input_data, int channels,
     return;
   }
 
-  // Write to PortAudio stream
-  PaError err =
-      Pa_WriteStream(this->stream_dict_[stream_key], data.data(), chunk);
-  if (err != paNoError && err != paOutputUnderflowed) {
-    RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
-                 Pa_GetErrorText(err));
+  // Write in smaller blocks to reduce underrun risk
+  size_t frames_written = 0;
+  size_t total_frames = chunk;
+  const size_t max_block = 512;
+
+  while (frames_written < total_frames) {
+    size_t frames_to_write = std::min(max_block, total_frames - frames_written);
+    PaError err = Pa_WriteStream(this->stream_dict_[stream_key],
+                                 data.data() + frames_written * this->channels_,
+                                 frames_to_write);
+
+    if (err == paOutputUnderflowed) {
+      RCLCPP_WARN(this->get_logger(),
+                  "PortAudio underrun detected, retrying...");
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      continue; // Try again this block
+
+    } else if (err != paNoError) {
+      RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
+                   Pa_GetErrorText(err));
+      break;
+    }
+
+    frames_written += frames_to_write;
   }
 }
