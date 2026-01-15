@@ -103,7 +103,13 @@ void TtsNode::execute_callback(
   cmd << "espeak -v" << language << " -s" << rate << " -a" << volume << " -w "
       << temp_file << " '" << text << "'";
 
-  std::system(cmd.str().c_str());
+  int ret = std::system(cmd.str().c_str());
+  if (ret != 0) {
+    RCLCPP_ERROR(this->get_logger(),
+                 "espeak command failed with return code: %d", ret);
+    goal_handle->abort(result);
+    return;
+  }
 
   // Read audio file
   audio_common::WaveFile wf(temp_file);
