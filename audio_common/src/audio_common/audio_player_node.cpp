@@ -87,13 +87,12 @@ void AudioPlayerNode::audio_callback(
     outputParameters.channelCount = this->channels_;
     outputParameters.sampleFormat = msg->audio.info.format;
     outputParameters.suggestedLatency =
-        Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
+        Pa_GetDeviceInfo(outputParameters.device)->defaultHighOutputLatency;
     outputParameters.hostApiSpecificStreamInfo = nullptr;
 
     PaError err = Pa_OpenStream(&this->stream_dict_[stream_key], nullptr,
-                                &outputParameters, msg->audio.info.rate,
-                                paFramesPerBufferUnspecified, paClipOff,
-                                nullptr, nullptr);
+                                &outputParameters, msg->audio.info.rate, 1024,
+                                paClipOff, nullptr, nullptr);
 
     if (err != paNoError) {
       RCLCPP_ERROR(this->get_logger(), "Failed to open audio stream: %s",
@@ -177,7 +176,7 @@ void AudioPlayerNode::write_data(const std::vector<T> &input_data, int channels,
   // Write in smaller blocks to reduce underrun risk
   size_t frames_written = 0;
   size_t total_frames = chunk;
-  const size_t max_block = 512;
+  const size_t max_block = 1024;
 
   while (frames_written < total_frames) {
     size_t frames_to_write = std::min(max_block, total_frames - frames_written);
@@ -188,7 +187,7 @@ void AudioPlayerNode::write_data(const std::vector<T> &input_data, int channels,
     if (err == paOutputUnderflowed) {
       RCLCPP_WARN(this->get_logger(),
                   "PortAudio underrun detected, retrying...");
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
       continue; // Try again this block
 
     } else if (err != paNoError) {
