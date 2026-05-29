@@ -135,11 +135,12 @@ void AudioPlayerNode::audio_callback(
   }
 }
 
-template <typename T>
-void AudioPlayerNode::write_data(const std::vector<T> &input_data, int channels,
+template <typename ContainerT>
+void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
                                  int chunk, const std::string &stream_key) {
 
-  std::vector<T> data; // Buffer for the actual data to write
+  using T = typename ContainerT::value_type;
+  std::vector<T> data;
 
   // Handle mono-to-stereo or stereo-to-mono conversions if necessary
   if (channels != this->channels_) {
@@ -150,7 +151,6 @@ void AudioPlayerNode::write_data(const std::vector<T> &input_data, int channels,
         data[2 * i] = input_data[i];
         data[2 * i + 1] = input_data[i];
       }
-
     } else if (channels == 2 && this->channels_ == 1) {
       // Stereo to mono conversion
       data.resize(input_data.size() / 2);
@@ -159,14 +159,13 @@ void AudioPlayerNode::write_data(const std::vector<T> &input_data, int channels,
             static_cast<T>((input_data[2 * i] + input_data[2 * i + 1]) / 2);
       }
     }
-
   } else {
     // No conversion needed
-    data = input_data;
+    data.assign(input_data.begin(), input_data.end());
   }
 
   // Make sure chunk size is correct for frames (not samples)
-  if (data.size() < chunk * this->channels_) {
+  if (data.size() < static_cast<size_t>(chunk * this->channels_)) {
     RCLCPP_WARN(this->get_logger(),
                 "Insufficient data (%ld) for requested chunk size (%d).",
                 data.size(), chunk * this->channels_);

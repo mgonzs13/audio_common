@@ -96,15 +96,15 @@ private:
    * @brief Write a block of typed audio samples to a PortAudio stream,
    *        performing mono↔stereo channel conversion when necessary.
    *
-   * @tparam T         Sample type that matches the PortAudio sample format of
-   *                   the target stream (e.g. @c float, @c int16_t).
-   * @param data       Input sample buffer received from the ROS 2 message.
-   * @param channels   Channel count of the incoming @p data.
-   * @param chunk      Number of frames in @p data.
-   * @param stream_key Key used to look up the target stream in #stream_dict_.
+   * @tparam ContainerT Container type of the input sample buffer (e.g.
+   *                    std::vector<int16_t>).
+   * @param data        Input sample buffer received from the ROS 2 message.
+   * @param channels    Channel count of the incoming @p data.
+   * @param chunk       Number of frames in @p data.
+   * @param stream_key  Key used to look up the target stream in #stream_dict_.
    */
-  template <typename T>
-  void write_data(const std::vector<T> &data, int channels, int chunk,
+  template <typename ContainerT>
+  void write_data(const ContainerT &data, int channels, int chunk,
                   const std::string &stream_key);
 };
 
