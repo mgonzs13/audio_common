@@ -14,6 +14,7 @@ This repositiory provides a set of ROS 2 packages for audio. It provides a C++ v
 |   **Iron**   | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |       [![Iron Build](https://github.com/mgonzs13/audio_common/actions/workflows/iron-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/iron-build-test.yml?branch=main)       |     [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-iron-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=iron)     |
 |  **Jazzy**   | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |     [![Jazzy Build](https://github.com/mgonzs13/audio_common/actions/workflows/jazzy-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/jazzy-build-test.yml?branch=main)      |    [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-jazzy-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=jazzy)    |
 |  **Kilted**  | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |    [![Kilted Build](https://github.com/mgonzs13/audio_common/actions/workflows/kilted-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/kilted-build-test.yml?branch=main)    |   [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-kilted-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=kilted)   |
+| **Lyrical**  | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |  [![Lyrical Build](https://github.com/mgonzs13/audio_common/actions/workflows/lyrical-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/lyrical-build-test.yml?branch=main)   |  [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-lyrical-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=lyrical)  |
 | **Rolling**  | [`main`](https://github.com/mgonzs13/audio_common/tree/main) |  [![Rolling Build](https://github.com/mgonzs13/audio_common/actions/workflows/rolling-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/audio_common/actions/workflows/rolling-build-test.yml?branch=main)   |  [![Docker Image](https://img.shields.io/badge/Docker%20Image%20-rolling-blue)](https://hub.docker.com/r/mgons/audio_common/tags?name=rolling)  |
 
 </div>
@@ -61,7 +62,6 @@ Node to obtain audio data from a microphone and publish it into the `audio` topi
 #### Parameters
 
 - **format**: Specifies the audio format to be used for capturing. Possible values are:
-
   - `1` (paFloat32 - 32-bit floating point)
   - `2` (paInt32 - 32-bit integer)
   - `8` (paInt16 - 16-bit integer)
@@ -98,7 +98,6 @@ Node to play the audio data obtained from the `audio` topic.
 #### Parameters
 
 - **channels**: The number of audio channels to play. Typically, `1` for mono and `2` for stereo. Default: `2`
-
   - The node automatically handles conversion between mono and stereo formats if needed.
 
 - **device**: The ID of the audio output device. A value of `-1` indicates that the default audio output device should be used. Default: `-1`
@@ -127,7 +126,6 @@ Node to play music from audio files in `wav` format.
 - **audio**: Topic to publish the audio data from the files. Type: `audio_common_msgs/msg/AudioStamped`
 
 - **music_play**: Service to play audio files. Type: `audio_common_msgs/srv/MusicPlay`
-
   - Parameters:
     - `audio`: Name of a built-in audio sample (e.g., "elevator")
     - `file_path`: Path to a custom WAV file (ignored if audio is specified)
