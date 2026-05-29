@@ -31,26 +31,78 @@
 
 namespace audio_common {
 
+/**
+ * @brief ROS 2 node that subscribes to stamped audio messages and plays them
+ *        through a PortAudio output device.
+ *
+ * One PortAudio stream is opened per unique combination of sample format,
+ * sample rate, and channel count.  Mono/stereo channel conversion is performed
+ * automatically when the incoming channel count differs from the configured
+ * output channel count.
+ *
+ * @par ROS 2 Parameters
+ * - `channels` (int, default 2): Number of output audio channels.
+ * - `device`   (int, default -1): PortAudio output device index.
+ *              -1 selects the system default output device.
+ *
+ * @par Subscriptions
+ * - `audio` (audio_common_msgs/msg/AudioStamped, SensorDataQoS)
+ */
 class AudioPlayerNode : public rclcpp::Node {
 public:
+  /**
+   * @brief Construct the node, declare/read parameters and initialise
+   *        PortAudio.
+   * @throws std::runtime_error if PortAudio cannot be initialised.
+   */
   AudioPlayerNode();
+
+  /**
+   * @brief Destructor – stops and closes all open PortAudio streams, then
+   *        calls Pa_Terminate().
+   */
   ~AudioPlayerNode() override;
 
 private:
-  // ROS 2 subscription for audio messages
+  /// @brief ROS 2 subscription for incoming stamped audio messages.
   rclcpp::Subscription<audio_common_msgs::msg::AudioStamped>::SharedPtr
       audio_sub_;
 
-  // PortAudio stream dictionary
+  /**
+   * @brief Map from a stream-key string ("format_rate_channels") to the
+   *        corresponding open PortAudio stream.
+   *
+   * A new stream is created on demand the first time a particular
+   * format/rate/channel combination is encountered.
+   */
   std::unordered_map<std::string, PaStream *> stream_dict_;
 
-  // Parameters
+  /// @brief Number of output audio channels (ROS 2 parameter "channels").
   int channels_;
+
+  /// @brief PortAudio output device index; -1 means the system default
+  /// (ROS 2 parameter "device").
   int device_;
 
-  // Methods
+  /**
+   * @brief Subscription callback – opens a stream if needed, then writes the
+   *        incoming audio data to the appropriate PortAudio stream.
+   * @param msg Shared pointer to the received AudioStamped message.
+   */
   void
   audio_callback(const audio_common_msgs::msg::AudioStamped::SharedPtr msg);
+
+  /**
+   * @brief Write a block of typed audio samples to a PortAudio stream,
+   *        performing mono↔stereo channel conversion when necessary.
+   *
+   * @tparam T         Sample type that matches the PortAudio sample format of
+   *                   the target stream (e.g. @c float, @c int16_t).
+   * @param data       Input sample buffer received from the ROS 2 message.
+   * @param channels   Channel count of the incoming @p data.
+   * @param chunk      Number of frames in @p data.
+   * @param stream_key Key used to look up the target stream in #stream_dict_.
+   */
   template <typename T>
   void write_data(const std::vector<T> &data, int channels, int chunk,
                   const std::string &stream_key);
