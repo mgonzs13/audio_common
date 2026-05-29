@@ -1,0 +1,17 @@
+<map id="audio_common/src/audio_common/audio_capturer_node.cpp" name="audio_common/src/audio_common/audio_capturer_node.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="151,5,319,61"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,205,73,231"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="196,64,135,111,94,154,60,194,56,191,90,150,132,107,192,60"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="97,205,181,231"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="195,63,172,85,153,110,141,150,139,190,134,189,136,150,149,108,168,81,192,59"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="205,205,324,231"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="280,60,304,81,321,108,327,129,321,151,308,175,292,196,287,192,304,172,317,149,321,129,317,110,299,84,277,63"/>
+<area shape="rect" id="Node000005" href="$audio__capturer__node_8hpp.html" title=" " alt="" coords="163,109,307,150"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="238,62,238,94,232,94,232,62"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="348,198,525,238"/>
+<area shape="poly" id="edge9_Node000001_Node000006" title=" " alt="" coords="279,59,342,107,381,146,414,184,410,187,377,150,339,111,276,64"/>
+<area shape="poly" id="edge5_Node000005_Node000002" title=" " alt="" coords="192,153,81,201,79,196,189,148"/>
+<area shape="poly" id="edge6_Node000005_Node000003" title=" " alt="" coords="215,152,165,197,162,193,211,148"/>
+<area shape="poly" id="edge7_Node000005_Node000004" title=" " alt="" coords="244,149,258,190,253,192,239,151"/>
+<area shape="poly" id="edge8_Node000005_Node000006" title=" " alt="" coords="282,148,377,189,375,194,280,153"/>
+</map>
