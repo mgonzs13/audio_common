@@ -1,0 +1,19 @@
+<map id="audio_common/include/audio_common/music_node.hpp" name="audio_common/include/audio_common/music_node.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="242,5,453,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,102,66,127"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="252,49,167,70,79,97,75,98,73,93,77,91,166,65,251,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="90,102,146,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="288,49,159,96,157,97,155,92,157,92,286,44"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="170,102,224,127"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="315,49,232,96,230,91,312,44"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="248,102,306,127"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="334,48,298,91,294,88,329,45"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="330,94,507,135"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="366,45,395,80,391,84,361,48"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="530,94,701,135"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="409,44,541,86,540,91,408,49"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="725,102,844,127"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="454,42,579,64,713,91,727,95,726,100,712,97,578,69,453,47"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="869,102,1026,127"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="454,36,642,59,857,91,879,95,878,101,856,97,642,65,453,41"/>
+</map>

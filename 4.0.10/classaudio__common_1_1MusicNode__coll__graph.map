@@ -1,0 +1,15 @@
+<map id="audio_common::MusicNode" name="audio_common::MusicNode">
+<area shape="rect" id="Node000001" title="ROS 2 node that streams WAV music files by publishing audio chunks and exposes ROS 2 services to cont..." alt="" coords="196,233,377,258"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,95,99,121"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="75,130,117,169,172,206,201,220,232,229,230,235,200,225,169,211,114,173,71,133"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="123,95,200,121"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="173,134,192,171,220,207,236,220,255,230,253,234,234,224,216,211,187,174,169,136"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="100,5,223,46"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="164,61,164,95,159,95,159,61"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="224,95,354,121"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="291,136,290,232,284,232,286,136"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="379,95,461,121"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="421,137,413,174,405,194,393,211,374,225,354,235,352,230,372,220,389,207,400,191,408,173,416,136"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="509,95,590,121"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="552,137,544,175,535,194,522,211,498,223,463,232,378,243,378,238,462,227,496,218,518,207,531,192,539,174,546,136"/>
+</map>
