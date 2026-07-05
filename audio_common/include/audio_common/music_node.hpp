@@ -28,7 +28,6 @@
 #include <string>
 #include <thread>
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <audio_common_msgs/msg/audio_stamped.hpp>
 #include <audio_common_msgs/srv/music_play.hpp>
 #include <rclcpp/rclcpp.hpp>

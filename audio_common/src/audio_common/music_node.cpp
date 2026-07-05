@@ -27,7 +27,17 @@
 #include <string>
 #include <thread>
 
+#if __has_include("rclcpp/version.h")
+#include "rclcpp/version.h"
+#if RCLCPP_VERSION_GTE(32, 0, 0)
+#include <ament_index_cpp/get_package_share_path.hpp>
+#else
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#endif
+#else
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#endif
+
 #include <audio_common_msgs/msg/audio_stamped.hpp>
 #include <audio_common_msgs/srv/music_play.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -143,8 +153,18 @@ void MusicNode::play_callback(
 
   std::string path = request->file_path;
   if (path.empty()) {
-    path = ament_index_cpp::get_package_share_directory("audio_common") +
-           "/samples/" + request->audio + ".wav";
+
+#if __has_include("rclcpp/version.h")
+#if RCLCPP_VERSION_GTE(32, 0, 0)
+    path = ament_index_cpp::get_package_share_path("audio_common").string();
+#else
+    path = ament_index_cpp::get_package_share_directory("audio_common");
+#endif
+#else
+    path = ament_index_cpp::get_package_share_directory("audio_common");
+#endif
+
+    path = path + "/samples/" + request->audio + ".wav";
   }
 
   if (!std::ifstream(path).good()) {
