@@ -100,6 +100,8 @@ Node to play the audio data obtained from the `audio` topic.
 - **channels**: The number of audio channels to play. Typically, `1` for mono and `2` for stereo. Default: `2`
   - The node automatically handles conversion between mono and stereo formats if needed.
 
+- **rate**: The output sample rate used to open the selected PortAudio output device. If set to `0`, the node uses the device default output sample rate. Incoming audio is resampled internally when its sample rate differs from this value. Default: `0`
+
 - **device**: The ID of the audio output device. A value of `-1` indicates that the default audio output device should be used. Default: `-1`
 
 #### ROS 2 Interfaces

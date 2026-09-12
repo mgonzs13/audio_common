@@ -26,7 +26,10 @@
 #include <memory>
 #include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
+#include <string>
+#include <unordered_map>
 
+#include "audio_common/sample_rate_converter.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
 namespace audio_common {
@@ -35,13 +38,16 @@ namespace audio_common {
  * @brief ROS 2 node that subscribes to stamped audio messages and plays them
  *        through a PortAudio output device.
  *
- * One PortAudio stream is opened per unique combination of sample format,
- * sample rate, and channel count.  Mono/stereo channel conversion is performed
- * automatically when the incoming channel count differs from the configured
- * output channel count.
+ * One PortAudio stream is opened per unique combination of input sample format,
+ * input sample rate, input channel count, output sample rate, and output
+ * channel count. Mono/stereo channel conversion and sample-rate conversion are
+ * performed automatically when the incoming audio differs from the configured
+ * output format.
  *
  * @par ROS 2 Parameters
  * - `channels` (int, default 2): Number of output audio channels.
+ * - `rate`     (int, default 0): Output sample rate. 0 selects the device
+ *              default output sample rate.
  * - `device`   (int, default -1): PortAudio output device index.
  *              -1 selects the system default output device.
  *
@@ -64,18 +70,25 @@ public:
   ~AudioPlayerNode() override;
 
 private:
+  struct PlaybackStream {
+    PaStream *stream;
+    int input_rate;
+    int output_rate;
+    SampleRateConverter sample_rate_converter;
+  };
+
   /// @brief ROS 2 subscription for incoming stamped audio messages.
   rclcpp::Subscription<audio_common_msgs::msg::AudioStamped>::SharedPtr
       audio_sub_;
 
   /**
-   * @brief Map from a stream-key string ("format_rate_channels") to the
-   *        corresponding open PortAudio stream.
+   * @brief Map from a stream-key string to the corresponding open PortAudio
+   *        stream and resampler state.
    *
-   * A new stream is created on demand the first time a particular
-   * format/rate/channel combination is encountered.
+   * A new stream is created on demand the first time a particular input/output
+   * format combination is encountered.
    */
-  std::unordered_map<std::string, PaStream *> stream_dict_;
+  std::unordered_map<std::string, PlaybackStream> stream_dict_;
 
   /// @brief Number of output audio channels (ROS 2 parameter "channels").
   int channels_;
@@ -83,6 +96,10 @@ private:
   /// @brief PortAudio output device index; -1 means the system default
   /// (ROS 2 parameter "device").
   int device_;
+
+  /// @brief Output sample rate; 0 means the selected device's default rate
+  /// (ROS 2 parameter "rate").
+  int rate_;
 
   /**
    * @brief Subscription callback – opens a stream if needed, then writes the
@@ -94,17 +111,18 @@ private:
 
   /**
    * @brief Write a block of typed audio samples to a PortAudio stream,
-   *        performing mono↔stereo channel conversion when necessary.
+   *        performing channel and sample-rate conversion when necessary.
    *
    * @tparam ContainerT Container type of the input sample buffer (e.g.
    *                    std::vector<int16_t>).
    * @param data        Input sample buffer received from the ROS 2 message.
    * @param channels    Channel count of the incoming @p data.
+   * @param rate        Sample rate of the incoming @p data.
    * @param chunk       Number of frames in @p data.
    * @param stream_key  Key used to look up the target stream in #stream_dict_.
    */
   template <typename ContainerT>
-  void write_data(const ContainerT &data, int channels, int chunk,
+  void write_data(const ContainerT &data, int channels, int rate, int chunk,
                   const std::string &stream_key);
 };
 
