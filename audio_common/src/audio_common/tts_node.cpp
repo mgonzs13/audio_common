@@ -145,8 +145,10 @@ void TtsNode::execute_callback(
   const auto goal = goal_handle->get_goal();
   const std::string text = goal->text;
   const std::string language = goal->language;
-  const int rate = std::clamp(static_cast<int>(goal->rate * 175), 80, 450);
-  const int volume = std::clamp(static_cast<int>(goal->volume * 100), 0, 200);
+  const int rate =
+      std::min(450, std::max(80, static_cast<int>(goal->rate * 175)));
+  const int volume =
+      std::min(200, std::max(0, static_cast<int>(goal->volume * 100)));
 
   if (!is_valid_language(language)) {
     RCLCPP_ERROR(this->get_logger(), "Invalid TTS language: '%s'",
