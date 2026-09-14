@@ -23,6 +23,7 @@
 #ifndef AUDIO_COMMON__AUDIO_PLAYER_NODE
 #define AUDIO_COMMON__AUDIO_PLAYER_NODE
 
+#include <cstdint>
 #include <memory>
 #include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
@@ -72,9 +73,10 @@ public:
 private:
   struct PlaybackStream {
     PaStream *stream;
-    int input_rate;
     int output_rate;
     SampleRateConverter sample_rate_converter;
+    /// @brief Timestamp (ns) of the last message written to this stream.
+    int64_t last_stamp_ns = 0;
   };
 
   /// @brief ROS 2 subscription for incoming stamped audio messages.
@@ -119,11 +121,13 @@ private:
    * @param channels    Channel count of the incoming @p data.
    * @param rate        Sample rate of the incoming @p data.
    * @param chunk       Number of frames in @p data.
+   * @param stamp_ns    Header timestamp of the message in nanoseconds (0 if
+   *                    unset), used to detect stream discontinuities.
    * @param stream_key  Key used to look up the target stream in #stream_dict_.
    */
   template <typename ContainerT>
   void write_data(const ContainerT &data, int channels, int rate, int chunk,
-                  const std::string &stream_key);
+                  int64_t stamp_ns, const std::string &stream_key);
 };
 
 } // namespace audio_common

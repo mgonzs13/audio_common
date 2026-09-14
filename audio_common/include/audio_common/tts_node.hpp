@@ -23,14 +23,8 @@
 #ifndef AUDIO_COMMON__TTS_NODE
 #define AUDIO_COMMON__TTS_NODE
 
-#include <atomic>
+#include <memory>
 #include <mutex>
-#include <string>
-#include <thread>
-
-#include <chrono>
-#include <mutex>
-#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -80,6 +74,11 @@ public:
    */
   TtsNode();
 
+  /**
+   * @brief Destructor – aborts any active goal and joins the worker thread.
+   */
+  ~TtsNode() override;
+
 private:
   /// @brief Number of float samples per published audio message.
   /// Corresponds to the ROS 2 parameter \"chunk\".
@@ -101,6 +100,9 @@ private:
 
   /// @brief Handle to the currently active (or last accepted) TTS goal.
   std::shared_ptr<GoalHandleTTS> goal_handle_;
+
+  /// @brief Worker thread that executes the current TTS goal.
+  std::thread worker_;
 
   /**
    * @brief Action server callback – decides whether to accept an incoming

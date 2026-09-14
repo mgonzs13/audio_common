@@ -65,36 +65,37 @@ public:
   /**
    * @brief Open the WAV file and parse its header.
    *
-   * Reads the RIFF/WAV header to populate #sample_rate_, #channels_, and
-   * #bits_per_sample_, then seeks to the start of the PCM data section.
+   * Walks the RIFF chunks (skipping metadata chunks such as LIST/INFO) to
+   * populate #sample_rate_, #channels_, and #bits_per_sample_ and to locate
+   * the PCM data section.
    *
    * @return @c true on success, @c false if the file could not be opened or
-   *         the header is not a valid RIFF/WAV header.
+   *         the header is not a valid 16-bit PCM RIFF/WAV header.
    */
   bool open();
 
   /**
    * @brief Rewind to the beginning of the audio data.
    *
-   * Closes and reopens the file, then calls open() so the read position is
-   * reset to the first PCM sample.
+   * Resets the read position to the first PCM sample without re-parsing the
+   * header.
    */
   void rewind();
 
   /**
-   * @brief Read the next @p size frames from the file into @p buffer.
+   * @brief Read up to the next @p size frames from the file into @p buffer.
    *
    * Samples are converted from int16_t to @c float in the range [-1.0, 1.0]
-   * using int16ToFloat().  @p buffer is resized to @p size × #channels_
-   * elements.
+   * using int16ToFloat().  @p buffer is resized to the number of frames
+   * actually read (which is less than @p size for the final partial block)
+   * times #channels_ elements.
    *
-   * Only 16-bit PCM WAV files are supported; the call returns @c false
-   * immediately for any other bit depth.
+   * Only 16-bit PCM WAV files are supported.
    *
    * @param[out] buffer Destination vector that receives the converted samples.
-   * @param[in]  size   Number of frames (not bytes) to read.
-   * @return @c true if exactly @p size frames were read, @c false on
-   *         end-of-file, read error, or unsupported bit depth.
+   * @param[in]  size   Maximum number of frames (not bytes) to read.
+   * @return @c true if at least one frame was read, @c false on end-of-file
+   *         or read error.
    */
   bool read(std::vector<float> &buffer, size_t size);
 
@@ -131,6 +132,9 @@ private:
 
   /// @brief Bits per PCM sample (populated by open(); only 16 is supported).
   int bits_per_sample_;
+
+  /// @brief File offset of the first PCM sample (populated by open()).
+  std::streamoff data_offset_;
 
   /**
    * @brief Convert a signed 16-bit PCM sample to a normalised float.

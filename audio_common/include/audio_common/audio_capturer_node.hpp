@@ -26,6 +26,8 @@
 #include <memory>
 #include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
+#include <string>
+#include <vector>
 
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
@@ -78,7 +80,7 @@ public:
 
 private:
   /// @brief Active PortAudio input stream handle.
-  PaStream *stream_;
+  PaStream *stream_ = nullptr;
 
   /// @brief PortAudio sample format (e.g. paInt16, paFloat32).
   /// Corresponds to the ROS 2 parameter \"format\".
@@ -108,9 +110,11 @@ private:
    *
    * @tparam T Sample type that matches the configured PortAudio format
    *           (e.g. @c float, @c int16_t, @c int8_t, @c uint8_t).
-   * @return Vector of @c chunk_ × @c channels_ samples.
+   * @param[out] data Vector resized to and filled with @c chunk_ × @c channels_
+   *                  samples. Cleared on read failure.
+   * @return @c true on success, @c false if PortAudio reported an error.
    */
-  template <typename T> std::vector<T> read_data();
+  template <typename T> bool read_data(std::vector<T> &data);
 };
 
 } // namespace audio_common

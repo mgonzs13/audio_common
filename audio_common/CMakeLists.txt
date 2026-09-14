@@ -116,6 +116,12 @@ if(BUILD_TESTING)
     src/audio_common/sample_rate_converter.cpp
   )
   target_include_directories(sample_rate_converter_test PRIVATE include)
+
+  ament_add_gtest(wave_file_test
+    test/wave_file_test.cpp
+    src/audio_common/wave_file.cpp
+  )
+  target_include_directories(wave_file_test PRIVATE include)
 endif()
 
 ament_export_dependencies(${DEPENDENCIES})

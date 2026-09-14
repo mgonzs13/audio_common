@@ -21,15 +21,15 @@
 // SOFTWARE.
 
 #include <algorithm>
-#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <vector>
 
+#include <builtin_interfaces/msg/time.hpp>
 #include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
 
@@ -41,6 +41,11 @@ using namespace audio_common;
 using std::placeholders::_1;
 
 namespace {
+
+int64_t stamp_to_nanoseconds(const builtin_interfaces::msg::Time &stamp) {
+  return static_cast<int64_t>(stamp.sec) * 1000000000LL +
+         static_cast<int64_t>(stamp.nanosec);
+}
 
 template <typename T> float sample_to_float(T sample) {
   return static_cast<float>(sample) /
@@ -154,7 +159,6 @@ void AudioPlayerNode::audio_callback(
 
     PlaybackStream playback_stream{};
     playback_stream.stream = nullptr;
-    playback_stream.input_rate = msg->audio.info.rate;
     playback_stream.output_rate = output_rate;
 
     err = Pa_OpenStream(&playback_stream.stream, nullptr, &outputParameters,
@@ -182,27 +186,32 @@ void AudioPlayerNode::audio_callback(
   case paFloat32:
     this->write_data(msg->audio.audio_data.float32_data,
                      msg->audio.info.channels, msg->audio.info.rate,
-                     msg->audio.info.chunk, stream_key);
+                     msg->audio.info.chunk,
+                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
     break;
 
   case paInt32:
     this->write_data(msg->audio.audio_data.int32_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk, stream_key);
+                     msg->audio.info.rate, msg->audio.info.chunk,
+                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
     break;
 
   case paInt16:
     this->write_data(msg->audio.audio_data.int16_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk, stream_key);
+                     msg->audio.info.rate, msg->audio.info.chunk,
+                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
     break;
 
   case paInt8:
     this->write_data(msg->audio.audio_data.int8_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk, stream_key);
+                     msg->audio.info.rate, msg->audio.info.chunk,
+                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
     break;
 
   case paUInt8:
     this->write_data(msg->audio.audio_data.uint8_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk, stream_key);
+                     msg->audio.info.rate, msg->audio.info.chunk,
+                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
     break;
   default:
     RCLCPP_ERROR(this->get_logger(), "Unsupported format");
@@ -212,7 +221,7 @@ void AudioPlayerNode::audio_callback(
 
 template <typename ContainerT>
 void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
-                                 int rate, int chunk,
+                                 int rate, int chunk, int64_t stamp_ns,
                                  const std::string &stream_key) {
 
   auto stream_it = this->stream_dict_.find(stream_key);
@@ -272,10 +281,38 @@ void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
   std::vector<float> resampled_data;
 
   if (rate != stream_it->second.output_rate) {
+    // Detect a discontinuity (new audio source or a long pause) and flush the
+    // retained frame of the previous block so its state does not bleed into
+    // the new audio.
+    const double expected_gap =
+        static_cast<double>(input_frames) / static_cast<double>(rate);
+    const bool discontinuity =
+        stream_it->second.last_stamp_ns != 0 && stamp_ns > 0 &&
+        stamp_ns > stream_it->second.last_stamp_ns &&
+        static_cast<double>(stamp_ns - stream_it->second.last_stamp_ns) / 1e9 >
+            std::max(0.5, 2.0 * expected_gap);
+
+    if (discontinuity) {
+      const std::vector<float> tail =
+          stream_it->second.sample_rate_converter.flush();
+      if (!tail.empty()) {
+        PaError err = Pa_WriteStream(stream_it->second.stream, tail.data(),
+                                     tail.size() / this->channels_);
+        if (err != paNoError && err != paOutputUnderflowed) {
+          RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
+                       Pa_GetErrorText(err));
+        }
+      }
+    }
+
     resampled_data = stream_it->second.sample_rate_converter.convert(
         data, this->channels_, rate, stream_it->second.output_rate);
     write_data = resampled_data.data();
     total_frames = resampled_data.size() / this->channels_;
+  }
+
+  if (stamp_ns > 0) {
+    stream_it->second.last_stamp_ns = stamp_ns;
   }
 
   if (total_frames == 0) {
@@ -292,11 +329,12 @@ void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
                                  write_data + frames_written * this->channels_,
                                  frames_to_write);
 
+    // paOutputUnderflowed only means that the device inserted silence before
+    // this block; the block itself has been consumed, so it must not be
+    // written again.
     if (err == paOutputUnderflowed) {
-      RCLCPP_WARN(this->get_logger(),
-                  "PortAudio underrun detected, retrying...");
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      continue; // Try again this block
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                           "PortAudio output underflow detected");
 
     } else if (err != paNoError) {
       RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",

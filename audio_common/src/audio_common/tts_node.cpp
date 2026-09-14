@@ -20,12 +20,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <chrono>
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <mutex>
-#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <unistd.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -40,6 +45,31 @@ using namespace std::chrono_literals;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+namespace {
+
+bool is_valid_language(const std::string &language) {
+  if (language.empty()) {
+    return false;
+  }
+  return std::all_of(language.begin(), language.end(), [](unsigned char c) {
+    return std::isalnum(c) != 0 || c == '-' || c == '_' || c == '+';
+  });
+}
+
+/// @brief Removes a file on scope exit.
+class TempFile {
+public:
+  ~TempFile() {
+    if (!this->path.empty()) {
+      std::remove(this->path.c_str());
+    }
+  }
+
+  std::string path;
+};
+
+} // namespace
+
 TtsNode::TtsNode() : Node("tts_node") {
 
   this->declare_parameter("chunk", 4096);
@@ -47,6 +77,11 @@ TtsNode::TtsNode() : Node("tts_node") {
 
   this->chunk_ = this->get_parameter("chunk").as_int();
   this->frame_id_ = this->get_parameter("frame_id").as_string();
+
+  if (this->chunk_ <= 0) {
+    RCLCPP_ERROR(this->get_logger(), "Invalid chunk size: %d", this->chunk_);
+    throw std::runtime_error("Invalid chunk size");
+  }
 
   this->player_pub_ =
       this->create_publisher<audio_common_msgs::msg::AudioStamped>(
@@ -59,6 +94,19 @@ TtsNode::TtsNode() : Node("tts_node") {
       std::bind(&TtsNode::handle_accepted, this, _1));
 
   RCLCPP_INFO(this->get_logger(), "TTS node started");
+}
+
+TtsNode::~TtsNode() {
+  std::unique_lock<std::mutex> lock(this->goal_lock_);
+
+  if (this->goal_handle_ != nullptr && this->goal_handle_->is_active()) {
+    auto result = std::make_shared<TTS::Result>();
+    this->goal_handle_->abort(result);
+  }
+
+  if (this->worker_.joinable()) {
+    this->worker_.join();
+  }
 }
 
 rclcpp_action::GoalResponse
@@ -81,29 +129,73 @@ void TtsNode::handle_accepted(
   if (this->goal_handle_ != nullptr && this->goal_handle_->is_active()) {
     auto result = std::make_shared<TTS::Result>();
     this->goal_handle_->abort(result);
-    this->goal_handle_ = goal_handle;
   }
 
-  std::thread{std::bind(&TtsNode::execute_callback, this, _1), goal_handle}
-      .detach();
+  if (this->worker_.joinable()) {
+    this->worker_.join();
+  }
+
+  this->goal_handle_ = goal_handle;
+  this->worker_ = std::thread(&TtsNode::execute_callback, this, goal_handle);
 }
 
 void TtsNode::execute_callback(
     const std::shared_ptr<GoalHandleTTS> goal_handle) {
   auto result = std::make_shared<TTS::Result>();
   const auto goal = goal_handle->get_goal();
-  std::string text = goal->text;
-  std::string language = goal->language;
-  int rate = static_cast<int>(goal->rate * 175);
-  int volume = static_cast<int>(goal->volume * 100);
+  const std::string text = goal->text;
+  const std::string language = goal->language;
+  const int rate = std::clamp(static_cast<int>(goal->rate * 175), 80, 450);
+  const int volume = std::clamp(static_cast<int>(goal->volume * 100), 0, 200);
+
+  if (!is_valid_language(language)) {
+    RCLCPP_ERROR(this->get_logger(), "Invalid TTS language: '%s'",
+                 language.c_str());
+    goal_handle->abort(result);
+    return;
+  }
+
+  // Write the text to a unique temporary file so it is never interpreted by
+  // the shell and concurrent goals cannot clobber each other.
+  TempFile text_file;
+  {
+    char path[] = "/tmp/tts_text_XXXXXX";
+    const int fd = ::mkstemp(path);
+    if (fd < 0) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to create temporary text file");
+      goal_handle->abort(result);
+      return;
+    }
+    text_file.path = path;
+
+    const ssize_t written = ::write(fd, text.data(), text.size());
+    ::close(fd);
+    if (written < 0 || static_cast<size_t>(written) != text.size()) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to write temporary text file");
+      goal_handle->abort(result);
+      return;
+    }
+  }
+
+  TempFile wav_file;
+  {
+    char path[] = "/tmp/tts_audio_XXXXXX";
+    const int fd = ::mkstemp(path);
+    if (fd < 0) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to create temporary audio file");
+      goal_handle->abort(result);
+      return;
+    }
+    wav_file.path = path;
+    ::close(fd);
+  }
 
   // Create audio file using espeak
-  char temp_file[] = "/tmp/tts_audio.wav";
-  std::stringstream cmd;
-  cmd << "espeak -v" << language << " -s" << rate << " -a" << volume << " -w "
-      << temp_file << " '" << text << "'";
+  std::string cmd = "espeak -v" + language + " -s" + std::to_string(rate) +
+                    " -a" + std::to_string(volume) + " -f " + text_file.path +
+                    " -w " + wav_file.path;
 
-  int ret = std::system(cmd.str().c_str());
+  int ret = std::system(cmd.c_str());
   if (ret != 0) {
     RCLCPP_ERROR(this->get_logger(),
                  "espeak command failed with return code: %d", ret);
@@ -112,9 +204,10 @@ void TtsNode::execute_callback(
   }
 
   // Read audio file
-  audio_common::WaveFile wf(temp_file);
+  audio_common::WaveFile wf(wav_file.path);
   if (!wf.open()) {
-    RCLCPP_ERROR(this->get_logger(), "Error opening audio file: %s", temp_file);
+    RCLCPP_ERROR(this->get_logger(), "Error opening audio file: %s",
+                 wav_file.path.c_str());
     goal_handle->abort(result);
     return;
   }
@@ -124,10 +217,6 @@ void TtsNode::execute_callback(
       (int)(1e9 * this->chunk_ / wf.get_sample_rate()));
   rclcpp::Rate pub_rate(period);
   std::vector<float> data(this->chunk_);
-
-  // Initialize the audio message
-  audio_common_msgs::msg::AudioStamped msg;
-  msg.header.frame_id = this->frame_id_;
 
   // Publish the audio data in chunks
   while (wf.read(data, this->chunk_)) {
@@ -141,10 +230,12 @@ void TtsNode::execute_callback(
     }
 
     auto msg = audio_common_msgs::msg::AudioStamped();
+    msg.header.frame_id = this->frame_id_;
     msg.header.stamp = this->get_clock()->now();
     msg.audio.audio_data.float32_data = data;
     msg.audio.info.channels = wf.get_num_channels();
-    msg.audio.info.chunk = this->chunk_;
+    msg.audio.info.chunk =
+        static_cast<int>(data.size() / wf.get_num_channels());
     msg.audio.info.format = 1;
     msg.audio.info.rate = wf.get_sample_rate();
 
@@ -155,9 +246,6 @@ void TtsNode::execute_callback(
     goal_handle->publish_feedback(feedback);
     pub_rate.sleep();
   }
-
-  // Cleanup and set result
-  std::remove(temp_file);
 
   result->text = text;
   goal_handle->succeed(result);

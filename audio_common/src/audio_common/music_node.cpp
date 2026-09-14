@@ -23,7 +23,9 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <fstream>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -61,6 +63,11 @@ MusicNode::MusicNode()
   this->chunk_ = this->get_parameter("chunk").as_int();
   this->frame_id_ = this->get_parameter("frame_id").as_string();
 
+  if (this->chunk_ <= 0) {
+    RCLCPP_ERROR(this->get_logger(), "Invalid chunk size: %d", this->chunk_);
+    throw std::runtime_error("Invalid chunk size");
+  }
+
   // Publisher
   this->player_pub_ =
       this->create_publisher<audio_common_msgs::msg::AudioStamped>(
@@ -81,6 +88,8 @@ MusicNode::MusicNode()
 
 MusicNode::~MusicNode() {
   this->stop_music_ = true;
+  this->pause_music_ = false;
+  this->pause_cv_.notify_all();
   if (this->publish_thread_.joinable()) {
     this->publish_thread_.join();
   }
@@ -88,12 +97,11 @@ MusicNode::~MusicNode() {
 
 void MusicNode::publish_audio(const std::string &file_path) {
 
-  this->is_thread_alive_ = true;
-
   audio_common::WaveFile wf(file_path);
   if (!wf.open()) {
     RCLCPP_ERROR(this->get_logger(), "Error opening audio file: %s",
                  file_path.c_str());
+    this->is_thread_alive_ = false;
     return;
   }
 
@@ -111,7 +119,8 @@ void MusicNode::publish_audio(const std::string &file_path) {
       msg.header.stamp = this->get_clock()->now();
       msg.audio.audio_data.float32_data = data;
       msg.audio.info.channels = wf.get_num_channels();
-      msg.audio.info.chunk = this->chunk_;
+      msg.audio.info.chunk =
+          static_cast<int>(data.size() / wf.get_num_channels());
       msg.audio.info.format = 1;
       msg.audio.info.rate = wf.get_sample_rate();
 
@@ -120,7 +129,8 @@ void MusicNode::publish_audio(const std::string &file_path) {
 
       if (this->pause_music_) {
         std::unique_lock<std::mutex> lock(this->pause_mutex_);
-        this->pause_cv_.wait(lock, [&]() { return !this->pause_music_; });
+        this->pause_cv_.wait(
+            lock, [&]() { return !this->pause_music_ || this->stop_music_; });
       }
 
       if (this->stop_music_) {
@@ -177,9 +187,17 @@ void MusicNode::play_callback(
   this->audio_loop_ = request->loop;
   this->pause_music_ = false;
   this->stop_music_ = false;
+  this->is_thread_alive_ = true;
   response->success = true;
 
-  this->publish_thread_ = std::thread(&MusicNode::publish_audio, this, path);
+  try {
+    this->publish_thread_ = std::thread(&MusicNode::publish_audio, this, path);
+  } catch (const std::exception &e) {
+    this->is_thread_alive_ = false;
+    RCLCPP_ERROR(this->get_logger(), "Failed to start playback thread: %s",
+                 e.what());
+    response->success = false;
+  }
 }
 
 void MusicNode::pause_callback(
@@ -219,7 +237,11 @@ void MusicNode::stop_callback(
 
   if (this->is_thread_alive_) {
     this->stop_music_ = true;
-    this->publish_thread_.join();
+    this->pause_music_ = false;
+    this->pause_cv_.notify_all();
+    if (this->publish_thread_.joinable()) {
+      this->publish_thread_.join();
+    }
     RCLCPP_INFO(this->get_logger(), "Music stopped");
     response->success = true;
 

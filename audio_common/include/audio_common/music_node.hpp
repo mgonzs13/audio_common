@@ -91,7 +91,7 @@ private:
 
   /// @brief When @c true the track restarts automatically after reaching the
   /// end.
-  bool audio_loop_;
+  std::atomic<bool> audio_loop_;
 
   /// @brief @c true while the publishing thread is actively streaming audio.
   std::atomic<bool> is_thread_alive_;
