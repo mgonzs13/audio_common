@@ -1,0 +1,17 @@
+<map id="audio_common::AudioPlayerNode" name="audio_common::AudioPlayerNode">
+<area shape="rect" id="Node000001" title="ROS 2 node that subscribes to stamped audio messages and plays them through a PortAudio output device..." alt="" coords="1268,41,1483,67"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="998,5,1091,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1107,22,1267,40,1267,45,1107,28"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="952,55,1137,126"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="1152,76,1267,63,1268,69,1153,81"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="712,47,790,72"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="806,62,952,78,952,83,805,68"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="316,38,440,78"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="455,56,712,57,712,62,455,61"/>
+<area shape="rect" id="Node000006" href="$structaudio__common_1_1AudioPlayerNode_1_1PlaybackStream.html" title=" " alt="" coords="659,98,843,138"/>
+<area shape="poly" id="edge5_Node000003_Node000006" title=" " alt="" coords="859,117,928,112,952,108,952,114,929,117,859,122"/>
+<area shape="rect" id="Node000007" href="$classaudio__common_1_1SampleRateConverter.html" title=" " alt="" coords="285,103,471,144"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="486,119,659,117,659,122,486,125"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="5,111,133,136"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="148,121,284,121,284,126,148,126"/>
+</map>

@@ -1,0 +1,16 @@
+<map id="audio_common/include/audio_common/wave_file.hpp" name="audio_common/include/audio_common/wave_file.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="332,5,528,46"/>
+<area shape="rect" id="Node000002" href="$tts__node_8hpp.html" title=" " alt="" coords="126,94,318,135"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="370,55,270,96,268,91,368,50"/>
+<area shape="rect" id="Node000003" href="$tts__node_8cpp.html" title=" " alt="" coords="5,183,172,223"/>
+<area shape="poly" id="edge5_Node000001_Node000003" title=" " alt="" coords="317,41,197,62,148,77,116,96,102,115,94,138,90,183,85,182,89,137,97,113,112,92,146,72,196,57,316,36"/>
+<area shape="rect" id="Node000005" href="$music__node_8cpp.html" title=" " alt="" coords="342,94,518,135"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="432,62,432,94,427,94,427,62"/>
+<area shape="rect" id="Node000006" href="$wave__file_8cpp.html" title=" " alt="" coords="543,94,709,135"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="489,50,582,91,580,96,487,55"/>
+<area shape="rect" id="Node000007" href="$wave__file__test_8cpp.html" title=" " alt="" coords="733,94,903,135"/>
+<area shape="poly" id="edge7_Node000001_Node000007" title=" " alt="" coords="534,47,733,91,732,97,532,52"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="181,145,120,184,117,180,178,141"/>
+<area shape="rect" id="Node000004" href="$tts__main_8cpp.html" title=" " alt="" coords="196,183,346,223"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="243,147,262,181,258,184,238,150"/>
+</map>

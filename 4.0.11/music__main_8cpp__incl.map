@@ -1,0 +1,22 @@
+<map id="audio_common/src/music_main.cpp" name="audio_common/src/music_main.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="117,5,288,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,190,125,216"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="189,48,86,179,82,176,185,45"/>
+<area shape="rect" id="Node000003" href="$music__node_8hpp.html" title=" " alt="" coords="266,94,414,135"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="235,44,297,83,294,88,232,49"/>
+<area shape="poly" id="edge9_Node000003_Node000002" title=" " alt="" coords="278,138,119,188,117,182,276,133"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="148,190,208,216"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="304,138,215,185,213,180,302,133"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="233,190,289,216"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="324,137,284,180,280,177,320,133"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="313,190,366,216"/>
+<area shape="poly" id="edge5_Node000003_Node000006" title=" " alt="" coords="342,135,342,175,337,175,337,135"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="391,190,448,216"/>
+<area shape="poly" id="edge6_Node000003_Node000007" title=" " alt="" coords="360,133,401,177,397,181,356,137"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="472,183,650,223"/>
+<area shape="poly" id="edge7_Node000003_Node000008" title=" " alt="" coords="391,133,497,174,496,179,389,138"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="673,183,844,223"/>
+<area shape="poly" id="edge8_Node000003_Node000009" title=" " alt="" coords="415,128,659,178,658,184,413,134"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="868,190,1025,216"/>
+<area shape="poly" id="edge10_Node000003_Node000010" title=" " alt="" coords="415,121,614,145,856,180,878,184,877,189,855,185,614,150,414,126"/>
+</map>
