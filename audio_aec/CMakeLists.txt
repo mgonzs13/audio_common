@@ -48,8 +48,6 @@ install(TARGETS aec_node DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_cmake_clang_format REQUIRED)
-  ament_clang_format(CONFIG_FILE .clang-format)
   ament_add_gtest(audio_converter_test test/audio_converter_test.cpp)
   target_link_libraries(audio_converter_test audio_aec_core)
   ament_add_gtest(resampler_test test/resampler_test.cpp)

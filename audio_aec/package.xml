@@ -11,8 +11,6 @@
     <depend>rclcpp</depend>
     <depend>audio_common_msgs</depend>
     <depend>libwebrtc-audio-processing-dev</depend>
-    <test_depend>ament_clang_format</test_depend>
-    <test_depend>ament_cmake_clang_format</test_depend>
     <test_depend>ament_cmake_gtest</test_depend>
     <export>
         <build_type>ament_cmake</build_type>
