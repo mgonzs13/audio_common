@@ -63,6 +63,25 @@ void scale_to_rms(std::vector<float> &data, double target_rms) {
   }
 }
 
+/// @brief Deterministic low-passed noise with speech-like spectral content.
+std::vector<float> noise_reference(int rate, double seconds) {
+  const size_t frames = static_cast<size_t>(rate * seconds);
+  std::vector<float> data(frames);
+  uint32_t state = 123456789u;
+  float filtered = 0.0f;
+
+  for (size_t i = 0; i < frames; ++i) {
+    state = state * 1664525u + 1013904223u;
+    const float white =
+        (static_cast<float>(state) / 4294967295.0f) * 2.0f - 1.0f;
+    filtered = 0.85f * filtered + 0.15f * white;
+    data[i] = filtered;
+  }
+
+  scale_to_rms(data, 0.15);
+  return data;
+}
+
 void construct_with_mic_buffer(int mic_buffer_ms) {
   audio_aec::AecProcessorConfig config;
   config.rate = 16000;
@@ -286,8 +305,7 @@ TEST(AecProcessorTest, SyntheticEchoIsReduced) {
   const int rate = 16000;
   const int delay_samples = rate * 20 / 1000;
   const size_t total = rate * 4;
-  const std::vector<float> reference =
-      speech_like_reference(rate, 4.0, 200.0, 3000.0, 0.0);
+  const std::vector<float> reference = noise_reference(rate, 4.0);
   ASSERT_EQ(reference.size(), total);
   std::vector<float> mic(total, 0.0f);
   for (size_t i = delay_samples; i < total; ++i) {
