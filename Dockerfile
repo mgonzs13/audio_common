@@ -9,8 +9,8 @@ COPY . /root/ros2_ws/src
 
 # Install dependencies
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash
-RUN apt-get update
-RUN rosdep install --from-paths src --ignore-src -r -y
+RUN apt-get update && apt-get install -y libwebrtc-audio-processing-dev
+RUN rosdep install --from-paths src --ignore-src -r -y --skip-keys libwebrtc-audio-processing-dev
 
 # Colcon the ws
 FROM deps AS builder

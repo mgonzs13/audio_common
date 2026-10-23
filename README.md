@@ -32,9 +32,12 @@ This repositiory provides a set of ROS 2 packages for audio. It provides a C++ v
 cd ~/ros2_ws/src
 git clone https://github.com/mgonzs13/audio_common.git
 cd ~/ros2_ws
-rosdep install --from-paths src --ignore-src -r -y
+rosdep install --from-paths src --ignore-src -r -y --skip-keys libwebrtc-audio-processing-dev
+sudo apt install -y libwebrtc-audio-processing-dev
 colcon build
 ```
+
+The `libwebrtc-audio-processing-dev` rosdep key is not yet released. Until it is, pass `--skip-keys libwebrtc-audio-processing-dev` to `rosdep install` and install the apt package explicitly as shown above.
 
 ## Docker
 
@@ -168,6 +171,33 @@ Node to generate audio from text (TTS) using espeak.
     - `audio`: The audio being currently played
   - Result:
     - `text`: The text that was converted to speech
+
+</details>
+
+### aec_node
+
+Node to remove the speaker's audio from the microphone signal (acoustic echo cancellation), so a robot can keep listening while `tts_node` or `music_node` is playing. It subscribes to a microphone topic (`audio`) and a playback reference topic (`audio_reference`), and publishes cleaned mono audio on `audio_clean`. Echo cancellation is provided by WebRTC AudioProcessing.
+
+<details>
+<summary>Click to expand</summary>
+
+#### Installation
+
+```shell
+sudo apt install libwebrtc-audio-processing-dev
+```
+
+Until the `libwebrtc-audio-processing-dev` rosdep key is released, add `--skip-keys libwebrtc-audio-processing-dev` to `rosdep install` and install the apt package explicitly.
+
+#### ROS 2 Interfaces
+
+- **audio**: Microphone input topic. Type: `audio_common_msgs/msg/AudioStamped`
+
+- **audio_reference**: Audio message the player is asked to play. Both the playback source and `audio_player_node` must be remapped to this topic. Type: `audio_common_msgs/msg/AudioStamped`
+
+- **audio_clean**: Cleaned mono output. Type: `audio_common_msgs/msg/AudioStamped`
+
+See [audio_aec/README.md](audio_aec/README.md) for the parameters, the TTS echo example, and tuning.
 
 </details>
 
