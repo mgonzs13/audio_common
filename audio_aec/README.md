@@ -23,29 +23,12 @@ the graph is wired with topic remapping.
 
 ## Install
 
-The node requires the WebRTC AudioProcessing development package:
-
-```shell
-sudo apt install libwebrtc-audio-processing-dev
-```
-
-For a source build:
-
 ```shell
 cd ~/ros2_ws
-rosdep install --from-paths src --ignore-src -r -y \
-  --skip-keys libwebrtc-audio-processing-dev
-sudo apt install libwebrtc-audio-processing-dev
+rosdep install --from-paths src --ignore-src -r -y
 colcon build --packages-up-to audio_aec
 source install/setup.bash
 ```
-
-The `libwebrtc-audio-processing-dev` rosdep key is not available in the current
-rosdistro database. Until it is released, CI and Docker builds install the apt
-package explicitly and pass
-`--skip-keys libwebrtc-audio-processing-dev` to `rosdep install`. Once the key is
-available, the skip and the explicit installs can be removed and a plain
-`rosdep install` will handle the dependency.
 
 Ubuntu 20.04 through 24.04 ship WebRTC AudioProcessing 0.3.1, while Ubuntu 25.10
 and later ship 1.3. The package supports both APIs and selects the right one at

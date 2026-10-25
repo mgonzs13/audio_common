@@ -32,12 +32,9 @@ This repositiory provides a set of ROS 2 packages for audio. It provides a C++ v
 cd ~/ros2_ws/src
 git clone https://github.com/mgonzs13/audio_common.git
 cd ~/ros2_ws
-rosdep install --from-paths src --ignore-src -r -y --skip-keys libwebrtc-audio-processing-dev
-sudo apt install -y libwebrtc-audio-processing-dev
+rosdep install --from-paths src --ignore-src -r -y
 colcon build
 ```
-
-The `libwebrtc-audio-processing-dev` rosdep key is not yet released. Until it is, pass `--skip-keys libwebrtc-audio-processing-dev` to `rosdep install` and install the apt package explicitly as shown above.
 
 ## Docker
 
@@ -180,14 +177,6 @@ Node to remove the speaker's audio from the microphone signal (acoustic echo can
 
 <details>
 <summary>Click to expand</summary>
-
-#### Installation
-
-```shell
-sudo apt install libwebrtc-audio-processing-dev
-```
-
-Until the `libwebrtc-audio-processing-dev` rosdep key is released, add `--skip-keys libwebrtc-audio-processing-dev` to `rosdep install` and install the apt package explicitly.
 
 #### ROS 2 Interfaces
 

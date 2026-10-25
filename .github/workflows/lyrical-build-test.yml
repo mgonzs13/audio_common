@@ -14,16 +14,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install WebRTC AudioProcessing
-        run: |
-          apt-get update
-          apt-get install -y libwebrtc-audio-processing-dev
       - name: Build and Test
         uses: ros-tooling/action-ros-ci@v0.4
         with:
           target-ros2-distro: lyrical
           coverage-result: false
-          rosdep-skip-keys: libwebrtc-audio-processing-dev
           skip-tests: false
           package-name: audio_aec
           colcon-defaults: |
