@@ -28,7 +28,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include "audio_aec/resampler.hpp"
+#include "audio_common_dsp/multi_channel_resampler.hpp"
+#include "audio_common_dsp/resampler.hpp"
 
 namespace {
 
@@ -66,7 +67,7 @@ double estimate_frequency(const std::vector<float> &data, int rate) {
 
 TEST(ResamplerTest, Downsample48kTo16kPreservesTone) {
   const auto input = sine(1000.0, 48000, 0.5, 0.5);
-  audio_aec::Resampler resampler;
+  audio_common_dsp::Resampler resampler;
   const auto output = resampler.process(input, 48000, 16000);
   ASSERT_NEAR(output.size(), input.size() / 3, 2u);
   EXPECT_NEAR(rms(output), 0.5 / std::sqrt(2.0), 0.05);
@@ -75,7 +76,7 @@ TEST(ResamplerTest, Downsample48kTo16kPreservesTone) {
 
 TEST(ResamplerTest, 22050To16000ProducesExpectedLength) {
   const auto input = sine(440.0, 22050, 1.0, 0.4);
-  audio_aec::Resampler resampler;
+  audio_common_dsp::Resampler resampler;
   const auto output = resampler.process(input, 22050, 16000);
   EXPECT_NEAR(output.size(), 16000u, 2u);
   EXPECT_NEAR(estimate_frequency(output, 16000), 440.0, 10.0);
@@ -84,10 +85,10 @@ TEST(ResamplerTest, 22050To16000ProducesExpectedLength) {
 TEST(ResamplerTest, StreamingMatchesOneShot) {
   const auto input = sine(440.0, 48000, 1.0, 0.4);
 
-  audio_aec::Resampler one_shot;
+  audio_common_dsp::Resampler one_shot;
   const auto expected = one_shot.process(input, 48000, 16000);
 
-  audio_aec::Resampler streaming;
+  audio_common_dsp::Resampler streaming;
   std::vector<float> actual;
   for (size_t offset = 0; offset < input.size(); offset += 512) {
     const size_t count = std::min<size_t>(512, input.size() - offset);
@@ -105,11 +106,11 @@ TEST(ResamplerTest, StreamingMatchesOneShot) {
 
 TEST(ResamplerTest, ResetClearsFilterAndPhase) {
   const auto input = sine(1000.0, 48000, 0.25, 0.5);
-  audio_aec::Resampler resampler;
+  audio_common_dsp::Resampler resampler;
   resampler.process(input, 48000, 16000);
   resampler.reset();
 
-  audio_aec::Resampler fresh;
+  audio_common_dsp::Resampler fresh;
   const auto after_reset = resampler.process(input, 48000, 16000);
   const auto expected = fresh.process(input, 48000, 16000);
   ASSERT_EQ(after_reset.size(), expected.size());
@@ -120,7 +121,7 @@ TEST(ResamplerTest, ResetClearsFilterAndPhase) {
 
 TEST(ResamplerTest, AttenuatesToneAboveOutputNyquist) {
   const auto input = sine(10000.0, 48000, 0.5, 0.5);
-  audio_aec::Resampler resampler;
+  audio_common_dsp::Resampler resampler;
   const auto output = resampler.process(input, 48000, 16000);
 
   ASSERT_NEAR(output.size(), input.size() / 3, 2u);
@@ -130,7 +131,7 @@ TEST(ResamplerTest, AttenuatesToneAboveOutputNyquist) {
 }
 
 TEST(ResamplerTest, RejectsNonPositiveRates) {
-  audio_aec::Resampler resampler;
+  audio_common_dsp::Resampler resampler;
   EXPECT_THROW(resampler.process({0.1f}, 0, 16000), std::invalid_argument);
   EXPECT_THROW(resampler.process({0.1f}, 48000, 0), std::invalid_argument);
   EXPECT_THROW(resampler.process({0.1f}, -1, 16000), std::invalid_argument);
@@ -141,7 +142,7 @@ TEST(ResamplerTest, FlushReturnsOutputRateSamplesForDownsampling) {
   auto input = sine(1000.0, 48000, 0.5, 0.5);
   input.push_back(0.25f);
 
-  audio_aec::Resampler resampler;
+  audio_common_dsp::Resampler resampler;
   auto output = resampler.process(input, 48000, 16000);
   const auto tail = resampler.flush();
   output.insert(output.end(), tail.begin(), tail.end());
@@ -157,7 +158,7 @@ TEST(ResamplerTest, FlushReturnsOutputRateSamplesForDownsampling) {
 TEST(ResamplerTest, FlushReturnsAllOutputRateSamplesForUpsampling) {
   const auto input = sine(1000.0, 16000, 1.0, 0.5);
 
-  audio_aec::Resampler resampler;
+  audio_common_dsp::Resampler resampler;
   auto output = resampler.process(input, 16000, 48000);
   const auto tail = resampler.flush();
   output.insert(output.end(), tail.begin(), tail.end());
@@ -167,4 +168,61 @@ TEST(ResamplerTest, FlushReturnsAllOutputRateSamplesForUpsampling) {
   EXPECT_EQ(output.size(), input.size() * 3);
   EXPECT_NEAR(rms(output), 0.5 / std::sqrt(2.0), 0.05);
   EXPECT_NEAR(estimate_frequency(output, 48000), 1000.0, 20.0);
+}
+
+TEST(MultiChannelResamplerTest, DownsampleStereoPreservesChannels) {
+  const auto left = sine(1000.0, 48000, 0.5, 0.5);
+  const auto right = sine(2000.0, 48000, 0.5, 0.5);
+  std::vector<float> input(left.size() * 2);
+  for (size_t i = 0; i < left.size(); ++i) {
+    input[2 * i] = left[i];
+    input[2 * i + 1] = right[i];
+  }
+
+  audio_common_dsp::MultiChannelResampler resampler;
+  auto output = resampler.process(input, 2, 48000, 16000);
+  const auto tail = resampler.flush();
+  output.insert(output.end(), tail.begin(), tail.end());
+
+  ASSERT_EQ(output.size() % 2, 0u);
+  const size_t frames = output.size() / 2;
+  EXPECT_NEAR(frames, left.size() / 3, 2u);
+
+  std::vector<float> left_out(frames);
+  std::vector<float> right_out(frames);
+  for (size_t i = 0; i < frames; ++i) {
+    left_out[i] = output[2 * i];
+    right_out[i] = output[2 * i + 1];
+  }
+  EXPECT_NEAR(rms(left_out), 0.5 / std::sqrt(2.0), 0.05);
+  EXPECT_NEAR(rms(right_out), 0.5 / std::sqrt(2.0), 0.05);
+  EXPECT_NEAR(estimate_frequency(left_out, 16000), 1000.0, 20.0);
+  EXPECT_NEAR(estimate_frequency(right_out, 16000), 2000.0, 40.0);
+}
+
+TEST(MultiChannelResamplerTest, SameRatePassesThrough) {
+  audio_common_dsp::MultiChannelResampler resampler;
+  const std::vector<float> input = {0.0f, 10.0f, 2.0f, 12.0f};
+  EXPECT_EQ(resampler.process(input, 2, 48000, 48000), input);
+  EXPECT_TRUE(resampler.flush().empty());
+}
+
+TEST(MultiChannelResamplerTest, FlushReturnsInterleavedTail) {
+  audio_common_dsp::MultiChannelResampler resampler;
+  EXPECT_TRUE(resampler.process({1.0f}, 1, 16000, 48000).empty());
+  const auto tail = resampler.flush();
+  EXPECT_EQ(tail.size(), 3u);
+  for (float sample : tail) {
+    EXPECT_FLOAT_EQ(sample, 1.0f);
+  }
+}
+
+TEST(MultiChannelResamplerTest, RejectsInvalidChannels) {
+  audio_common_dsp::MultiChannelResampler resampler;
+  EXPECT_THROW(resampler.process({0.1f}, 0, 48000, 16000),
+               std::invalid_argument);
+  EXPECT_THROW(resampler.process({0.1f, 0.2f, 0.3f}, 2, 48000, 16000),
+               std::invalid_argument);
+  EXPECT_THROW(resampler.process({0.1f}, -1, 48000, 16000),
+               std::invalid_argument);
 }

@@ -54,6 +54,9 @@ public:
   WebrtcAec(const WebrtcAec &) = delete;
   WebrtcAec &operator=(const WebrtcAec &) = delete;
 
+  /// @brief True if @p sample_rate is supported by WebRTC AudioProcessing.
+  static bool is_supported_sample_rate(int sample_rate);
+
   /**
    * @brief Feed one far-end (render) frame to the echo canceller.
    *

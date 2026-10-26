@@ -4,6 +4,7 @@ project(audio_aec)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(audio_common_msgs REQUIRED)
+find_package(audio_common_dsp REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing)
@@ -21,13 +22,14 @@ if(NOT WEBRTC_APM_FOUND)
 endif()
 
 add_library(audio_aec_core STATIC
-  src/audio_converter.cpp
-  src/resampler.cpp
   src/webrtc_aec.cpp
   src/aec_processor.cpp
 )
 target_include_directories(audio_aec_core PUBLIC include)
-target_link_libraries(audio_aec_core PUBLIC ${audio_common_msgs_TARGETS})
+target_link_libraries(audio_aec_core PUBLIC
+  ${audio_common_msgs_TARGETS}
+  audio_common_dsp::audio_common_dsp
+)
 target_include_directories(audio_aec_core PRIVATE ${WEBRTC_APM_INCLUDE_DIRS})
 target_link_libraries(audio_aec_core PUBLIC ${WEBRTC_APM_LINK_LIBRARIES})
 target_compile_options(audio_aec_core PRIVATE ${WEBRTC_APM_CFLAGS_OTHER})
@@ -48,10 +50,6 @@ install(TARGETS aec_node DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(audio_converter_test test/audio_converter_test.cpp)
-  target_link_libraries(audio_converter_test audio_aec_core)
-  ament_add_gtest(resampler_test test/resampler_test.cpp)
-  target_link_libraries(resampler_test audio_aec_core)
   ament_add_gtest(webrtc_aec_test test/webrtc_aec_test.cpp)
   target_link_libraries(webrtc_aec_test audio_aec_core)
   ament_add_gtest(aec_processor_test test/aec_processor_test.cpp)

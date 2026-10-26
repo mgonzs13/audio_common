@@ -35,13 +35,8 @@
 namespace audio_aec {
 namespace {
 
-bool is_supported_sample_rate(int sample_rate) {
-  return sample_rate == 8000 || sample_rate == 16000 || sample_rate == 32000 ||
-         sample_rate == 48000;
-}
-
 int validate_sample_rate(int sample_rate) {
-  if (!is_supported_sample_rate(sample_rate)) {
+  if (!WebrtcAec::is_supported_sample_rate(sample_rate)) {
     throw std::invalid_argument(
         "WebRTC AudioProcessing supports only 8000, 16000, 32000, or 48000 Hz");
   }
@@ -49,6 +44,11 @@ int validate_sample_rate(int sample_rate) {
 }
 
 } // namespace
+
+bool WebrtcAec::is_supported_sample_rate(int sample_rate) {
+  return sample_rate == 8000 || sample_rate == 16000 || sample_rate == 32000 ||
+         sample_rate == 48000;
+}
 
 class WebrtcAec::Impl {
 public:

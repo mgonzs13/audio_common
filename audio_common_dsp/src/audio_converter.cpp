@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "audio_aec/audio_converter.hpp"
+#include "audio_common_dsp/audio_converter.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -31,19 +31,16 @@
 #include <string>
 #include <vector>
 
-namespace audio_aec {
+namespace audio_common_dsp {
 namespace {
-
-float sanitize_sample(float value) {
-  if (!std::isfinite(value)) {
-    return 0.0f;
-  }
-  return std::min(1.0f, std::max(-1.0f, value));
-}
 
 template <typename T> float to_normalized_signed(T value) {
   const double scale = static_cast<double>(std::numeric_limits<T>::max()) + 1.0;
   return static_cast<float>(static_cast<double>(value) / scale);
+}
+
+template <> float to_normalized_signed<std::int16_t>(std::int16_t value) {
+  return int16_to_float(value);
 }
 
 float to_normalized_uint8(std::uint8_t value) {
@@ -65,34 +62,15 @@ std::uint8_t from_normalized_uint8(float value) {
       std::lround(std::min(255.0f, std::max(0.0f, scaled))));
 }
 
-std::vector<float> downmix(const std::vector<float> &interleaved,
-                           int channels) {
-  const std::size_t channel_count = static_cast<std::size_t>(channels);
-  if (interleaved.size() % channel_count != 0) {
-    throw std::invalid_argument(
-        "Audio data length is not a multiple of the channel count");
-  }
-
-  const std::size_t frame_count = interleaved.size() / channel_count;
-  std::vector<float> mono(frame_count);
-
-  for (std::size_t frame = 0; frame < frame_count; ++frame) {
-    double sum = 0.0;
-    for (std::size_t channel = 0; channel < channel_count; ++channel) {
-      sum += interleaved[frame * channel_count + channel];
-    }
-    mono[frame] = sanitize_sample(
-        static_cast<float>(sum / static_cast<double>(channel_count)));
-  }
-
-  return mono;
-}
-
 } // namespace
 
+bool AudioConverter::is_supported_format(int format) {
+  return audio_common_dsp::is_supported_format(format);
+}
+
 std::vector<float>
-AudioConverter::to_mono_float(const audio_common_msgs::msg::AudioData &data,
-                              int format, int channels) {
+AudioConverter::to_float(const audio_common_msgs::msg::AudioData &data,
+                         int format, int channels) {
   if (channels <= 0) {
     throw std::invalid_argument("Channel count must be positive");
   }
@@ -101,10 +79,7 @@ AudioConverter::to_mono_float(const audio_common_msgs::msg::AudioData &data,
 
   switch (format) {
   case kPaFloat32:
-    interleaved.reserve(data.float32_data.size());
-    for (const float value : data.float32_data) {
-      interleaved.push_back(sanitize_sample(value));
-    }
+    interleaved.assign(data.float32_data.begin(), data.float32_data.end());
     break;
   case kPaInt32:
     interleaved.reserve(data.int32_data.size());
@@ -135,12 +110,25 @@ AudioConverter::to_mono_float(const audio_common_msgs::msg::AudioData &data,
                                 std::to_string(format));
   }
 
-  return downmix(interleaved, channels);
+  if (interleaved.size() % static_cast<std::size_t>(channels) != 0) {
+    throw std::invalid_argument(
+        "Audio data length is not a multiple of the channel count");
+  }
+
+  sanitize_samples(interleaved);
+  return interleaved;
 }
 
-void AudioConverter::from_mono_float(const std::vector<float> &samples,
-                                     int format,
-                                     audio_common_msgs::msg::AudioData &out) {
+std::vector<float>
+AudioConverter::to_mono_float(const audio_common_msgs::msg::AudioData &data,
+                              int format, int channels) {
+  const std::vector<float> interleaved =
+      AudioConverter::to_float(data, format, channels);
+  return AudioConverter::convert_channels(interleaved, channels, 1);
+}
+
+void AudioConverter::from_float(const std::vector<float> &samples, int format,
+                                audio_common_msgs::msg::AudioData &out) {
   switch (format) {
   case kPaFloat32:
     out.float32_data.resize(samples.size());
@@ -176,4 +164,65 @@ void AudioConverter::from_mono_float(const std::vector<float> &samples,
   }
 }
 
-} // namespace audio_aec
+void AudioConverter::from_mono_float(const std::vector<float> &samples,
+                                     int format,
+                                     audio_common_msgs::msg::AudioData &out) {
+  AudioConverter::from_float(samples, format, out);
+}
+
+std::vector<float>
+AudioConverter::convert_channels(const std::vector<float> &samples,
+                                 int input_channels, int output_channels) {
+  if (input_channels <= 0 || output_channels <= 0) {
+    throw std::invalid_argument("Channel counts must be positive");
+  }
+
+  if (samples.size() % static_cast<std::size_t>(input_channels) != 0) {
+    throw std::invalid_argument(
+        "Audio data length is not a multiple of the channel count");
+  }
+
+  if (input_channels == output_channels) {
+    return samples;
+  }
+
+  const std::size_t frames =
+      samples.size() / static_cast<std::size_t>(input_channels);
+
+  if (input_channels == 1) {
+    std::vector<float> output(frames *
+                              static_cast<std::size_t>(output_channels));
+    for (std::size_t frame = 0; frame < frames; ++frame) {
+      for (int channel = 0; channel < output_channels; ++channel) {
+        output[frame * static_cast<std::size_t>(output_channels) +
+               static_cast<std::size_t>(channel)] = samples[frame];
+      }
+    }
+
+    return output;
+  }
+
+  if (output_channels == 1) {
+    std::vector<float> output(frames);
+
+    for (std::size_t frame = 0; frame < frames; ++frame) {
+      double sum = 0.0;
+
+      for (int channel = 0; channel < input_channels; ++channel) {
+        sum += samples[frame * static_cast<std::size_t>(input_channels) +
+                       static_cast<std::size_t>(channel)];
+      }
+
+      output[frame] = sanitize_sample(
+          static_cast<float>(sum / static_cast<double>(input_channels)));
+    }
+
+    return output;
+  }
+
+  throw std::invalid_argument("Unsupported channel conversion from " +
+                              std::to_string(input_channels) + " to " +
+                              std::to_string(output_channels));
+}
+
+} // namespace audio_common_dsp

@@ -30,27 +30,14 @@
 #include <utility>
 #include <vector>
 
+#include "audio_common_dsp/sample_format.hpp"
+#include "audio_common_dsp/time_utils.hpp"
+
 namespace audio_aec {
 namespace {
 
-constexpr int64_t kNanosecondsPerSecond = 1000000000LL;
-
-bool is_supported_rate(int rate) {
-  return rate == 8000 || rate == 16000 || rate == 32000 || rate == 48000;
-}
-
-void sanitize_samples(std::vector<float> &samples) {
-  for (float &sample : samples) {
-    if (!std::isfinite(sample)) {
-      sample = 0.0f;
-    } else {
-      sample = std::min(1.0f, std::max(-1.0f, sample));
-    }
-  }
-}
-
 AecProcessorConfig validate_config(const AecProcessorConfig &config) {
-  if (!is_supported_rate(config.rate)) {
+  if (!WebrtcAec::is_supported_sample_rate(config.rate)) {
     throw std::invalid_argument(
         "AecProcessor rate must be 8000, 16000, 32000, or 48000");
   }
@@ -77,6 +64,10 @@ AecProcessorConfig validate_config(const AecProcessorConfig &config) {
 }
 
 } // namespace
+
+bool AecProcessor::is_supported_rate(int rate) {
+  return WebrtcAec::is_supported_sample_rate(rate);
+}
 
 AecProcessor::AecProcessor(const AecProcessorConfig &config)
     : config_(validate_config(config)), frame_size_(config_.rate / 100),
@@ -109,7 +100,7 @@ void AecProcessor::push_mic(const std::vector<float> &mono, int input_rate,
   }
 
   std::vector<float> sanitized = mono;
-  sanitize_samples(sanitized);
+  audio_common_dsp::sanitize_samples(sanitized);
   std::vector<float> resampled =
       this->mic_resampler_.process(sanitized, input_rate, this->config_.rate);
   if (resampled.empty()) {
@@ -128,7 +119,7 @@ void AecProcessor::push_mic(const std::vector<float> &mono, int input_rate,
 void AecProcessor::push_reference(const std::vector<float> &mono,
                                   int input_rate, int64_t stamp_ns) {
   std::vector<float> sanitized = mono;
-  sanitize_samples(sanitized);
+  audio_common_dsp::sanitize_samples(sanitized);
   const std::vector<float> resampled = this->reference_resampler_.process(
       sanitized, input_rate, this->config_.rate);
   this->reference_fifo_.insert(this->reference_fifo_.end(), resampled.begin(),
@@ -239,7 +230,8 @@ std::vector<float> AecProcessor::pop_mic_frame(int64_t &stamp_ns) {
     if (block.samples.empty()) {
       this->mic_fifo_.pop_front();
     } else {
-      block.stamp_ns += static_cast<int64_t>(take) * kNanosecondsPerSecond /
+      block.stamp_ns += static_cast<int64_t>(take) *
+                        audio_common_dsp::kNanosecondsPerSecond /
                         this->config_.rate;
     }
   }
@@ -310,12 +302,12 @@ void AecProcessor::process_next_frame(std::vector<OutputChunk> &output) {
 
   if (!processed_ok) {
     processed = mic_frame;
-    sanitize_samples(processed);
+    audio_common_dsp::sanitize_samples(processed);
     this->last_error_ = error_code;
     this->aec_.reset();
     this->had_error_ = true;
   } else if (!finite) {
-    sanitize_samples(processed);
+    audio_common_dsp::sanitize_samples(processed);
     this->last_error_ = 0;
     this->aec_.reset();
     this->mic_resampler_.reset();
@@ -340,7 +332,8 @@ void AecProcessor::process_next_frame(std::vector<OutputChunk> &output) {
                                 this->output_samples_.begin() +
                                     this->output_chunk_frames_);
     this->output_stamp_ns_ += static_cast<int64_t>(this->output_chunk_frames_) *
-                              kNanosecondsPerSecond / this->config_.rate;
+                              audio_common_dsp::kNanosecondsPerSecond /
+                              this->config_.rate;
     output.push_back(std::move(chunk));
   }
 
@@ -384,12 +377,13 @@ int64_t AecProcessor::next_mic_stamp() const {
   if (!this->mic_fifo_.empty()) {
     const TimedBlock &block = this->mic_fifo_.back();
     return block.stamp_ns + static_cast<int64_t>(block.samples.size()) *
-                                kNanosecondsPerSecond / this->config_.rate;
+                                audio_common_dsp::kNanosecondsPerSecond /
+                                this->config_.rate;
   }
   if (this->output_stamp_ns_ >= 0) {
     return this->output_stamp_ns_ +
            static_cast<int64_t>(this->output_samples_.size()) *
-               kNanosecondsPerSecond / this->config_.rate;
+               audio_common_dsp::kNanosecondsPerSecond / this->config_.rate;
   }
 
   return 0;

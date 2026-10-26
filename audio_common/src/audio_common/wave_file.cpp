@@ -25,6 +25,7 @@
 #include <iostream>
 
 #include "audio_common/wave_file.hpp"
+#include "audio_common_dsp/sample_format.hpp"
 
 using namespace audio_common;
 
@@ -172,7 +173,7 @@ bool WaveFile::read(std::vector<float> &buffer, size_t size) {
   // Convert int16 samples to float and store in buffer
   buffer.resize(frames_read * this->channels_);
   for (size_t i = 0; i < buffer.size(); ++i) {
-    buffer[i] = int16ToFloat(temp_buffer[i]);
+    buffer[i] = audio_common_dsp::int16_to_float(temp_buffer[i]);
   }
 
   return true;

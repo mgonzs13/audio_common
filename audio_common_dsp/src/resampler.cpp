@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "audio_aec/resampler.hpp"
+#include "audio_common_dsp/resampler.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace audio_aec {
+namespace audio_common_dsp {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
@@ -173,4 +173,4 @@ std::vector<float> Resampler::flush() {
   return output;
 }
 
-} // namespace audio_aec
+} // namespace audio_common_dsp

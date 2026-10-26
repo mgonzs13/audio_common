@@ -20,12 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef AUDIO_AEC__RESAMPLER_HPP_
-#define AUDIO_AEC__RESAMPLER_HPP_
+#ifndef AUDIO_COMMON_DSP__RESAMPLER_HPP_
+#define AUDIO_COMMON_DSP__RESAMPLER_HPP_
 
 #include <vector>
 
-namespace audio_aec {
+namespace audio_common_dsp {
 
 /**
  * @brief Streaming sample-rate converter with an anti-alias low-pass filter.
@@ -89,6 +89,6 @@ private:
   Biquad lowpass2_;
 };
 
-} // namespace audio_aec
+} // namespace audio_common_dsp
 
-#endif // AUDIO_AEC__RESAMPLER_HPP_
+#endif // AUDIO_COMMON_DSP__RESAMPLER_HPP_

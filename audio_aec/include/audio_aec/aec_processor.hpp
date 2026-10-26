@@ -28,8 +28,8 @@
 #include <deque>
 #include <vector>
 
-#include "audio_aec/resampler.hpp"
 #include "audio_aec/webrtc_aec.hpp"
+#include "audio_common_dsp/resampler.hpp"
 
 namespace audio_aec {
 
@@ -156,6 +156,9 @@ public:
   /// @brief Number of samples in one 10 ms processing frame.
   int frame_size() const;
 
+  /// @brief True if @p rate is supported by WebRTC AudioProcessing.
+  static bool is_supported_rate(int rate);
+
   virtual ~AecProcessor() = default;
 
 protected:
@@ -197,8 +200,8 @@ private:
   std::size_t mic_capacity_frames_;
   std::size_t reference_capacity_frames_;
   WebrtcAec aec_;
-  Resampler mic_resampler_;
-  Resampler reference_resampler_;
+  audio_common_dsp::Resampler mic_resampler_;
+  audio_common_dsp::Resampler reference_resampler_;
   std::deque<TimedBlock> mic_fifo_;
   std::deque<float> reference_fifo_;
   std::size_t mic_available_;

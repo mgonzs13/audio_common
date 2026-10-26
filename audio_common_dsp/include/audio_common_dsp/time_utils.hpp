@@ -20,37 +20,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef AUDIO_COMMON__SAMPLE_RATE_CONVERTER
-#define AUDIO_COMMON__SAMPLE_RATE_CONVERTER
+#ifndef AUDIO_COMMON_DSP__TIME_UTILS_HPP_
+#define AUDIO_COMMON_DSP__TIME_UTILS_HPP_
 
-#include <vector>
+#include <cstdint>
 
-namespace audio_common {
+namespace audio_common_dsp {
 
-class SampleRateConverter {
-public:
-  /**
-   * @brief Convert interleaved audio samples to a different sample rate.
-   *
-   * The converter keeps one frame of look-ahead between calls. Call flush()
-   * after the final input block to retrieve the retained final frame.
-   *
-   * @throws std::invalid_argument if a rate or channel count is not positive,
-   *         or if the input does not contain complete frames.
-   */
-  std::vector<float> convert(const std::vector<float> &input_data, int channels,
-                             int input_rate, int output_rate);
+constexpr int64_t kNanosecondsPerSecond = 1000000000LL;
 
-  /**
-   * @brief Return the retained final frame and reset the converter state.
-   */
-  std::vector<float> flush();
+/// @brief Combine seconds and nanoseconds into a signed nanosecond count.
+inline int64_t to_nanoseconds(std::int32_t seconds, std::uint32_t nanoseconds) {
+  return static_cast<int64_t>(seconds) * kNanosecondsPerSecond +
+         static_cast<int64_t>(nanoseconds);
+}
 
-private:
-  double position_ = 0.0;
-  std::vector<float> previous_frame_;
-};
+/// @brief Split a signed nanosecond count into seconds and nanoseconds.
+inline void from_nanoseconds(std::int64_t nanoseconds, std::int32_t &seconds,
+                             std::uint32_t &nanos) {
+  if (nanoseconds < 0) {
+    nanoseconds = 0;
+  }
+  seconds = static_cast<std::int32_t>(nanoseconds / kNanosecondsPerSecond);
+  nanos = static_cast<std::uint32_t>(nanoseconds % kNanosecondsPerSecond);
+}
 
-} // namespace audio_common
+} // namespace audio_common_dsp
 
-#endif
+#endif // AUDIO_COMMON_DSP__TIME_UTILS_HPP_

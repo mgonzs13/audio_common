@@ -22,43 +22,23 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <builtin_interfaces/msg/time.hpp>
 #include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
 
 #include "audio_common/audio_player_node.hpp"
+#include "audio_common_dsp/audio_converter.hpp"
+#include "audio_common_dsp/time_utils.hpp"
 #include "audio_common_msgs/msg/audio.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
 using namespace audio_common;
 using std::placeholders::_1;
-
-namespace {
-
-int64_t stamp_to_nanoseconds(const builtin_interfaces::msg::Time &stamp) {
-  return static_cast<int64_t>(stamp.sec) * 1000000000LL +
-         static_cast<int64_t>(stamp.nanosec);
-}
-
-template <typename T> float sample_to_float(T sample) {
-  return static_cast<float>(sample) /
-         (static_cast<float>(std::numeric_limits<T>::max()) + 1.0f);
-}
-
-template <> float sample_to_float<float>(float sample) { return sample; }
-
-template <> float sample_to_float<uint8_t>(uint8_t sample) {
-  return (static_cast<float>(sample) - 128.0f) / 128.0f;
-}
-
-} // namespace
 
 AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
   // Declare parameters
@@ -182,47 +162,16 @@ void AudioPlayerNode::audio_callback(
   }
 
   // Write audio from ROS 2 msg
-  switch (msg->audio.info.format) {
-  case paFloat32:
-    this->write_data(msg->audio.audio_data.float32_data,
-                     msg->audio.info.channels, msg->audio.info.rate,
-                     msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paInt32:
-    this->write_data(msg->audio.audio_data.int32_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paInt16:
-    this->write_data(msg->audio.audio_data.int16_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paInt8:
-    this->write_data(msg->audio.audio_data.int8_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paUInt8:
-    this->write_data(msg->audio.audio_data.uint8_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-  default:
-    RCLCPP_ERROR(this->get_logger(), "Unsupported format");
-    return;
-  }
+  this->write_data(msg->audio.audio_data, msg->audio.info.format,
+                   msg->audio.info.channels, msg->audio.info.rate,
+                   audio_common_dsp::to_nanoseconds(msg->header.stamp.sec,
+                                                    msg->header.stamp.nanosec),
+                   stream_key);
 }
 
-template <typename ContainerT>
-void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
-                                 int rate, int chunk, int64_t stamp_ns,
-                                 const std::string &stream_key) {
+void AudioPlayerNode::write_data(
+    const audio_common_msgs::msg::AudioData &input_data, int format,
+    int channels, int rate, int64_t stamp_ns, const std::string &stream_key) {
 
   auto stream_it = this->stream_dict_.find(stream_key);
   if (stream_it == this->stream_dict_.end()) {
@@ -230,50 +179,25 @@ void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
     return;
   }
 
-  if (channels <= 0 || chunk <= 0) {
+  if (channels <= 0 || rate <= 0) {
     RCLCPP_WARN(this->get_logger(), "Invalid audio data shape");
     return;
   }
 
-  const size_t input_frames = static_cast<size_t>(chunk);
-  const size_t required_input_samples = input_frames * channels;
-
-  if (input_data.size() < required_input_samples) {
-    RCLCPP_WARN(this->get_logger(),
-                "Insufficient data (%zu) for requested chunk size (%zu).",
-                input_data.size(), required_input_samples);
+  std::vector<float> data;
+  try {
+    data = audio_common_dsp::AudioConverter::to_float(input_data, format,
+                                                      channels);
+    data = audio_common_dsp::AudioConverter::convert_channels(data, channels,
+                                                              this->channels_);
+  } catch (const std::invalid_argument &e) {
+    RCLCPP_WARN(this->get_logger(), "Dropping audio message: %s", e.what());
     return;
   }
 
-  std::vector<float> data(input_frames * this->channels_);
-
-  // Handle mono-to-stereo or stereo-to-mono conversions if necessary
-  if (channels != this->channels_) {
-    if (channels == 1 && this->channels_ == 2) {
-      // Mono to stereo conversion
-      for (size_t i = 0; i < input_frames; ++i) {
-        const float sample = sample_to_float(input_data[i]);
-        data[2 * i] = sample;
-        data[2 * i + 1] = sample;
-      }
-    } else if (channels == 2 && this->channels_ == 1) {
-      // Stereo to mono conversion
-      for (size_t i = 0; i < input_frames; ++i) {
-        data[i] = (sample_to_float(input_data[2 * i]) +
-                   sample_to_float(input_data[2 * i + 1])) /
-                  2.0f;
-      }
-    } else {
-      RCLCPP_WARN(this->get_logger(),
-                  "Unsupported channel conversion from %d to %d channels.",
-                  channels, this->channels_);
-      return;
-    }
-  } else {
-    // No conversion needed
-    for (size_t i = 0; i < data.size(); ++i) {
-      data[i] = sample_to_float(input_data[i]);
-    }
+  const size_t input_frames = data.size() / this->channels_;
+  if (input_frames == 0) {
+    return;
   }
 
   const float *write_data = data.data();
@@ -293,8 +217,7 @@ void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
             std::max(0.5, 2.0 * expected_gap);
 
     if (discontinuity) {
-      const std::vector<float> tail =
-          stream_it->second.sample_rate_converter.flush();
+      const std::vector<float> tail = stream_it->second.resampler.flush();
       if (!tail.empty()) {
         PaError err = Pa_WriteStream(stream_it->second.stream, tail.data(),
                                      tail.size() / this->channels_);
@@ -305,7 +228,7 @@ void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
       }
     }
 
-    resampled_data = stream_it->second.sample_rate_converter.convert(
+    resampled_data = stream_it->second.resampler.process(
         data, this->channels_, rate, stream_it->second.output_rate);
     write_data = resampled_data.data();
     total_frames = resampled_data.size() / this->channels_;

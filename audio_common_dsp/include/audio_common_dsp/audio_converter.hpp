@@ -20,28 +20,77 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef AUDIO_AEC__AUDIO_CONVERTER_HPP_
-#define AUDIO_AEC__AUDIO_CONVERTER_HPP_
+#ifndef AUDIO_COMMON_DSP__AUDIO_CONVERTER_HPP_
+#define AUDIO_COMMON_DSP__AUDIO_CONVERTER_HPP_
 
 #include <vector>
 
+#include "audio_common_dsp/sample_format.hpp"
 #include "audio_common_msgs/msg/audio_data.hpp"
 
-namespace audio_aec {
-
-/// @brief PortAudio sample format constants supported by AudioConverter.
-constexpr int kPaFloat32 = 1;
-constexpr int kPaInt32 = 2;
-constexpr int kPaInt16 = 8;
-constexpr int kPaInt8 = 16;
-constexpr int kPaUInt8 = 32;
+namespace audio_common_dsp {
 
 /**
  * @brief Converts audio_common_msgs::msg::AudioData between interleaved
- *        integer/float encodings and mono float samples.
+ *        integer/float encodings and float samples.
  */
 class AudioConverter {
 public:
+  /// @brief True if @p format is one of the supported PortAudio constants.
+  static bool is_supported_format(int format);
+
+  /**
+   * @brief Convert interleaved audio data to interleaved float samples.
+   *
+   * Channels are preserved. Float32 samples are clamped to [-1, 1] and
+   * non-finite samples (NaN and +/-Inf) are replaced with 0.
+   *
+   * @param data Interleaved audio data. Only the array matching @p format is
+   *        read.
+   * @param format One of the kPa* sample format constants.
+   * @param channels Number of interleaved channels; must be positive.
+   * @return Interleaved float samples in [-1, 1].
+   * @throws std::invalid_argument if @p channels is not positive, @p format is
+   *         unsupported, or the selected array length is not a multiple of
+   *         @p channels.
+   */
+  static std::vector<float>
+  to_float(const audio_common_msgs::msg::AudioData &data, int format,
+           int channels);
+
+  /**
+   * @brief Convert interleaved float samples to interleaved audio data.
+   *
+   * Integer output is clamped to [-1, 1] before scaling. Float32 output is
+   * clamped to [-1, 1] with non-finite samples replaced by 0. Only the array
+   * matching @p format is written; the other arrays are left untouched.
+   *
+   * @param samples Interleaved float samples.
+   * @param format One of the kPa* sample format constants.
+   * @param[out] out Audio data whose matching array is replaced.
+   * @throws std::invalid_argument if @p format is unsupported.
+   */
+  static void from_float(const std::vector<float> &samples, int format,
+                         audio_common_msgs::msg::AudioData &out);
+
+  /**
+   * @brief Convert an interleaved signal between channel counts.
+   *
+   * Supports identical channel counts, mono to N channels (duplicate), and N
+   * channels to mono (average). Other conversions throw.
+   *
+   * @param samples Interleaved float samples.
+   * @param input_channels Number of interleaved channels in @p samples.
+   * @param output_channels Desired number of interleaved channels.
+   * @return Converted interleaved samples.
+   * @throws std::invalid_argument if a channel count is not positive, the input
+   *         length is not a multiple of @p input_channels, or the conversion is
+   *         unsupported.
+   */
+  static std::vector<float> convert_channels(const std::vector<float> &samples,
+                                             int input_channels,
+                                             int output_channels);
+
   /**
    * @brief Convert interleaved audio data to mono float samples in [-1, 1].
    *
@@ -78,6 +127,6 @@ public:
                               audio_common_msgs::msg::AudioData &out);
 };
 
-} // namespace audio_aec
+} // namespace audio_common_dsp
 
-#endif // AUDIO_AEC__AUDIO_CONVERTER_HPP_
+#endif // AUDIO_COMMON_DSP__AUDIO_CONVERTER_HPP_

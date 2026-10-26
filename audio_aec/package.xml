@@ -10,6 +10,7 @@
     <build_depend>pkg-config</build_depend>
     <depend>rclcpp</depend>
     <depend>audio_common_msgs</depend>
+    <depend>audio_common_dsp</depend>
     <depend>libwebrtc-audio-processing-dev</depend>
     <test_depend>ament_cmake_gtest</test_depend>
     <export>

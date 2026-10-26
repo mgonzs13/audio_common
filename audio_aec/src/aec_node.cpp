@@ -30,10 +30,10 @@
 #include <string>
 #include <vector>
 
-#include <builtin_interfaces/msg/time.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "audio_aec/audio_converter.hpp"
+#include "audio_common_dsp/audio_converter.hpp"
+#include "audio_common_dsp/time_utils.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
 using std::placeholders::_1;
@@ -41,45 +41,19 @@ using std::placeholders::_1;
 namespace audio_aec {
 namespace {
 
-constexpr int64_t kNanosecondsPerSecond = 1000000000LL;
 constexpr int64_t kThrottleMs = 1000;
-
-bool is_supported_rate(int rate) {
-  return rate == 8000 || rate == 16000 || rate == 32000 || rate == 48000;
-}
-
-bool is_supported_format(int format) {
-  return format == kPaFloat32 || format == kPaInt32 || format == kPaInt16 ||
-         format == kPaInt8 || format == kPaUInt8;
-}
-
-int64_t stamp_to_ns(const builtin_interfaces::msg::Time &stamp) {
-  return static_cast<int64_t>(stamp.sec) * kNanosecondsPerSecond +
-         static_cast<int64_t>(stamp.nanosec);
-}
-
-builtin_interfaces::msg::Time ns_to_time(int64_t ns) {
-  if (ns < 0) {
-    ns = 0;
-  }
-
-  builtin_interfaces::msg::Time stamp;
-  stamp.sec = static_cast<int32_t>(ns / kNanosecondsPerSecond);
-  stamp.nanosec = static_cast<uint32_t>(ns % kNanosecondsPerSecond);
-  return stamp;
-}
 
 } // namespace
 
 AecNode::AecNode(const rclcpp::NodeOptions &options)
-    : Node("aec_node", options), format_(kPaInt16),
+    : Node("aec_node", options), format_(audio_common_dsp::kPaInt16),
       last_reference_reset_count_(0) {
   // Declare parameters with default values
   this->declare_parameter<std::string>("mic_topic", "audio");
   this->declare_parameter<std::string>("reference_topic", "audio_reference");
   this->declare_parameter<std::string>("output_topic", "audio_clean");
   this->declare_parameter<int>("rate", 16000);
-  this->declare_parameter<int>("format", kPaInt16);
+  this->declare_parameter<int>("format", audio_common_dsp::kPaInt16);
   this->declare_parameter<int>("mic_buffer_ms", 100);
   this->declare_parameter<int>("output_chunk_ms", 20);
   this->declare_parameter<int>("stream_delay_ms", 0);
@@ -108,7 +82,7 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
       this->get_parameter("reference_timeout_ms").as_int();
 
   // Validate parameters
-  if (!is_supported_rate(rate)) {
+  if (!AecProcessor::is_supported_rate(rate)) {
     RCLCPP_ERROR(this->get_logger(),
                  "Invalid parameter 'rate': %d (must be 8000, 16000, 32000, "
                  "or 48000)",
@@ -116,7 +90,7 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
     throw std::runtime_error("Invalid parameter 'rate'");
   }
 
-  if (!is_supported_format(this->format_)) {
+  if (!audio_common_dsp::AudioConverter::is_supported_format(this->format_)) {
     RCLCPP_ERROR(this->get_logger(),
                  "Invalid parameter 'format': %d (must be 1, 2, 8, 16, or 32)",
                  this->format_);
@@ -199,7 +173,7 @@ void AecNode::mic_callback(
   const audio_common_msgs::msg::AudioInfo &info = msg->audio.info;
 
   if (info.channels <= 0 || info.rate <= 0 ||
-      !is_supported_format(info.format)) {
+      !audio_common_dsp::AudioConverter::is_supported_format(info.format)) {
     RCLCPP_ERROR_THROTTLE(
         this->get_logger(), *this->get_clock(), kThrottleMs,
         "Dropping microphone message with invalid info (channels=%d, rate=%d, "
@@ -210,15 +184,16 @@ void AecNode::mic_callback(
 
   std::vector<float> mono;
   try {
-    mono = AudioConverter::to_mono_float(msg->audio.audio_data, info.format,
-                                         info.channels);
+    mono = audio_common_dsp::AudioConverter::to_mono_float(
+        msg->audio.audio_data, info.format, info.channels);
   } catch (const std::invalid_argument &e) {
     RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), kThrottleMs,
                           "Dropping microphone message: %s", e.what());
     return;
   }
 
-  int64_t stamp_ns = stamp_to_ns(msg->header.stamp);
+  int64_t stamp_ns = audio_common_dsp::to_nanoseconds(
+      msg->header.stamp.sec, msg->header.stamp.nanosec);
   if (stamp_ns == 0) {
     stamp_ns = this->now().nanoseconds();
   }
@@ -234,7 +209,7 @@ void AecNode::reference_callback(
   const audio_common_msgs::msg::AudioInfo &info = msg->audio.info;
 
   if (info.channels <= 0 || info.rate <= 0 ||
-      !is_supported_format(info.format)) {
+      !audio_common_dsp::AudioConverter::is_supported_format(info.format)) {
     RCLCPP_ERROR_THROTTLE(
         this->get_logger(), *this->get_clock(), kThrottleMs,
         "Dropping reference message with invalid info (channels=%d, rate=%d, "
@@ -245,15 +220,16 @@ void AecNode::reference_callback(
 
   std::vector<float> mono;
   try {
-    mono = AudioConverter::to_mono_float(msg->audio.audio_data, info.format,
-                                         info.channels);
+    mono = audio_common_dsp::AudioConverter::to_mono_float(
+        msg->audio.audio_data, info.format, info.channels);
   } catch (const std::invalid_argument &e) {
     RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), kThrottleMs,
                           "Dropping reference message: %s", e.what());
     return;
   }
 
-  int64_t stamp_ns = stamp_to_ns(msg->header.stamp);
+  int64_t stamp_ns = audio_common_dsp::to_nanoseconds(
+      msg->header.stamp.sec, msg->header.stamp.nanosec);
   if (stamp_ns == 0) {
     stamp_ns = this->now().nanoseconds();
   }
@@ -269,14 +245,17 @@ void AecNode::publish_ready() {
   for (const OutputChunk &chunk : chunks) {
     audio_common_msgs::msg::AudioStamped msg;
     msg.header.frame_id = this->latest_frame_id_;
-    msg.header.stamp = ns_to_time(chunk.stamp_ns);
+    msg.header.stamp.sec = 0;
+    msg.header.stamp.nanosec = 0;
+    audio_common_dsp::from_nanoseconds(chunk.stamp_ns, msg.header.stamp.sec,
+                                       msg.header.stamp.nanosec);
     msg.audio.info.format = this->format_;
     msg.audio.info.channels = 1;
     msg.audio.info.rate = this->processor_->rate();
     msg.audio.info.chunk = static_cast<int32_t>(chunk.samples.size());
 
-    AudioConverter::from_mono_float(chunk.samples, this->format_,
-                                    msg.audio.audio_data);
+    audio_common_dsp::AudioConverter::from_mono_float(
+        chunk.samples, this->format_, msg.audio.audio_data);
     this->output_pub_->publish(msg);
   }
 

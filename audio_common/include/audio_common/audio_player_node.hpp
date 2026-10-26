@@ -30,7 +30,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "audio_common/sample_rate_converter.hpp"
+#include "audio_common_dsp/multi_channel_resampler.hpp"
+#include "audio_common_msgs/msg/audio_data.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
 namespace audio_common {
@@ -74,7 +75,7 @@ private:
   struct PlaybackStream {
     PaStream *stream;
     int output_rate;
-    SampleRateConverter sample_rate_converter;
+    audio_common_dsp::MultiChannelResampler resampler;
     /// @brief Timestamp (ns) of the last message written to this stream.
     int64_t last_stamp_ns = 0;
   };
@@ -115,19 +116,17 @@ private:
    * @brief Write a block of typed audio samples to a PortAudio stream,
    *        performing channel and sample-rate conversion when necessary.
    *
-   * @tparam ContainerT Container type of the input sample buffer (e.g.
-   *                    std::vector<int16_t>).
    * @param data        Input sample buffer received from the ROS 2 message.
+   * @param format      PortAudio sample format constant of @p data.
    * @param channels    Channel count of the incoming @p data.
    * @param rate        Sample rate of the incoming @p data.
-   * @param chunk       Number of frames in @p data.
    * @param stamp_ns    Header timestamp of the message in nanoseconds (0 if
    *                    unset), used to detect stream discontinuities.
    * @param stream_key  Key used to look up the target stream in #stream_dict_.
    */
-  template <typename ContainerT>
-  void write_data(const ContainerT &data, int channels, int rate, int chunk,
-                  int64_t stamp_ns, const std::string &stream_key);
+  void write_data(const audio_common_msgs::msg::AudioData &data, int format,
+                  int channels, int rate, int64_t stamp_ns,
+                  const std::string &stream_key);
 };
 
 } // namespace audio_common
