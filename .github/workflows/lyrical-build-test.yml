@@ -20,7 +20,7 @@ jobs:
           target-ros2-distro: lyrical
           coverage-result: false
           skip-tests: false
-          package-name: audio_aec
+          package-name: audio_aec audio_common_dsp
           colcon-defaults: |
             {
               "test": {
