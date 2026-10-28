@@ -41,28 +41,34 @@ AecProcessorConfig validate_config(const AecProcessorConfig &config) {
     throw std::invalid_argument(
         "AecProcessor rate must be 8000, 16000, 32000, or 48000");
   }
+
   if (config.mic_buffer_ms < 0 || config.mic_buffer_ms % 10 != 0 ||
       config.mic_buffer_ms > 500) {
     throw std::invalid_argument(
         "AecProcessor mic_buffer_ms must be non-negative, a multiple of 10, "
         "and at most 500");
   }
+
   if (config.output_chunk_ms <= 0 || config.output_chunk_ms % 10 != 0) {
     throw std::invalid_argument(
         "AecProcessor output_chunk_ms must be positive and a multiple of 10");
   }
+
   if (config.stream_delay_ms < 0) {
     throw std::invalid_argument(
         "AecProcessor stream_delay_ms must be non-negative");
   }
+
   if (config.reference_lead_ms < 0 || config.reference_lead_ms > 500) {
     throw std::invalid_argument(
         "AecProcessor reference_lead_ms must be between 0 and 500");
   }
+
   if (config.reference_wait_ms < 0 || config.reference_wait_ms > 1000) {
     throw std::invalid_argument(
         "AecProcessor reference_wait_ms must be between 0 and 1000");
   }
+
   if (config.reference_timeout_ms <= 0) {
     throw std::invalid_argument(
         "AecProcessor reference_timeout_ms must be positive");
@@ -138,6 +144,7 @@ void AecProcessor::push_reference(const std::vector<float> &mono,
   audio_common_dsp::sanitize_samples(sanitized);
   const std::vector<float> resampled = this->reference_resampler_.process(
       sanitized, input_rate, this->config_.rate);
+
   if (!resampled.empty()) {
     TimedBlock block;
     block.samples = resampled;
@@ -153,6 +160,7 @@ void AecProcessor::push_reference(const std::vector<float> &mono,
   if (stamp_ns > this->last_reference_stamp_ns_) {
     this->last_reference_stamp_ns_ = stamp_ns;
   }
+
   this->reference_timed_out_ = false;
 
   this->enforce_reference_capacity();
@@ -170,9 +178,11 @@ std::vector<OutputChunk> AecProcessor::pop_output() {
     const int64_t target =
         this->mic_fifo_.front().stamp_ns +
         static_cast<int64_t>(this->config_.reference_lead_ms) * 1000000LL;
+
     if (!this->reference_ready(target)) {
       break;
     }
+
     this->process_next_frame(output);
   }
 
@@ -286,9 +296,9 @@ int64_t AecProcessor::reference_end_stamp_ns() const {
   }
 
   const TimedBlock &block = this->reference_fifo_.back();
-  return block.stamp_ns +
-         static_cast<int64_t>(block.samples.size()) *
-             audio_common_dsp::kNanosecondsPerSecond / this->config_.rate;
+  return block.stamp_ns + static_cast<int64_t>(block.samples.size()) *
+                              audio_common_dsp::kNanosecondsPerSecond /
+                              this->config_.rate;
 }
 
 bool AecProcessor::reference_ready(int64_t stamp_ns) const {
@@ -300,12 +310,14 @@ bool AecProcessor::reference_ready(int64_t stamp_ns) const {
   if (end == 0) {
     return true;
   }
+
   if (!this->reference_fifo_.empty() &&
       stamp_ns < this->reference_fifo_.front().stamp_ns) {
     // The requested time predates the oldest buffered reference. Waiting
     // cannot recover it; process the gap as silence.
     return true;
   }
+
   if (stamp_ns < end) {
     return true;
   }
@@ -349,6 +361,7 @@ std::vector<float> AecProcessor::pop_reference_frame(int64_t stamp_ns) {
       this->reference_fifo_.pop_front();
       continue;
     }
+
     block.samples.erase(block.samples.begin(), block.samples.begin() + skip);
     block.stamp_ns += static_cast<int64_t>(skip) * ns_per_sample;
     this->reference_available_ -= skip;
@@ -363,9 +376,8 @@ std::vector<float> AecProcessor::pop_reference_frame(int64_t stamp_ns) {
   const int64_t first_start = this->reference_fifo_.front().stamp_ns;
   if (first_start > stamp_ns) {
     // The reference begins inside this frame; leave the leading part silent.
-    const int64_t gap =
-        (first_start - stamp_ns) * this->config_.rate /
-        audio_common_dsp::kNanosecondsPerSecond;
+    const int64_t gap = (first_start - stamp_ns) * this->config_.rate /
+                        audio_common_dsp::kNanosecondsPerSecond;
     if (gap >= this->frame_size_) {
       return frame;
     }
@@ -403,6 +415,7 @@ bool AecProcessor::process_aec_frame(const float *reference, const float *mic,
     code = this->aec_.last_error();
   }
   const bool captured = this->aec_.process_capture(mic, processed, frames);
+
   if (!captured) {
     code = this->aec_.last_error();
   }
@@ -419,8 +432,8 @@ void AecProcessor::process_next_frame(std::vector<OutputChunk> &output) {
   int64_t stamp_ns = 0;
   const std::vector<float> mic_frame = this->pop_mic_frame(stamp_ns);
   const int64_t reference_stamp_ns =
-      stamp_ns + static_cast<int64_t>(this->config_.reference_lead_ms) *
-                     1000000LL;
+      stamp_ns +
+      static_cast<int64_t>(this->config_.reference_lead_ms) * 1000000LL;
   const std::vector<float> reference_frame =
       this->pop_reference_frame(reference_stamp_ns);
 
@@ -444,6 +457,7 @@ void AecProcessor::process_next_frame(std::vector<OutputChunk> &output) {
     this->last_error_ = error_code;
     this->aec_.reset();
     this->had_error_ = true;
+
   } else if (!finite) {
     audio_common_dsp::sanitize_samples(processed);
     this->last_error_ = 0;
@@ -456,6 +470,7 @@ void AecProcessor::process_next_frame(std::vector<OutputChunk> &output) {
   if (this->output_samples_.empty()) {
     this->output_stamp_ns_ = stamp_ns;
   }
+
   this->output_samples_.insert(this->output_samples_.end(), processed.begin(),
                                processed.end());
 

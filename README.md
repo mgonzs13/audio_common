@@ -108,10 +108,7 @@ Node to play the audio data obtained from the `audio` topic.
 
 - **publish_reference**: Publish the played frames on `reference_topic`. Default: `true`
 
-The player uses a continuous PortAudio callback and a playback queue, so the
-device is kept fed with silence when no audio is queued. The reference topic
-therefore carries the actual device output, including silence, which is what
-an AEC needs for the far-end signal.
+The player uses a continuous PortAudio callback and a playback queue, so the device is kept fed with silence when no audio is queued. The reference topic therefore carries the actual device output, including silence, which is what an AEC needs for the far-end signal.
 
 #### ROS 2 Interfaces
 

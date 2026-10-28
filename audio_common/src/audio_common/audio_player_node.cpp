@@ -274,6 +274,7 @@ void AudioPlayerNode::write_data(
   if (!tail_data.empty()) {
     stream.queue.insert(stream.queue.end(), tail_data.begin(), tail_data.end());
   }
+
   if (total_frames > 0) {
     stream.queue.insert(stream.queue.end(), write_data,
                         write_data + total_frames * this->channels_);
