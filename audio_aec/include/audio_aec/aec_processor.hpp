@@ -51,9 +51,8 @@ struct AecProcessorConfig {
   /// The delay reported to WebRTC is @c stream_delay_ms plus this value.
   int reference_lead_ms = 0;
   /// @brief How long a microphone frame may wait for its timestamped
-  /// reference, in ms, before it is processed with silence. A short wait
-  /// absorbs normal transport jitter; a longer gap is treated as missing
-  /// reference audio.
+  /// reference, in ms. A short wait absorbs normal transport jitter; a gap
+  /// longer than this value is processed with silence.
   int reference_wait_ms = 100;
   /// @brief Enable WebRTC's high-pass filter.
   bool enable_high_pass = true;
@@ -69,7 +68,9 @@ struct AecProcessorConfig {
 /// @brief One block of cleaned audio with the capture stamp of its first
 /// sample.
 struct OutputChunk {
+  /// @brief Cleaned mono float samples in [-1, 1].
   std::vector<float> samples;
+  /// @brief Capture timestamp of @c samples.front() in nanoseconds.
   int64_t stamp_ns = 0;
 };
 
@@ -175,6 +176,7 @@ public:
   /// @brief True if @p rate is supported by WebRTC AudioProcessing.
   static bool is_supported_rate(int rate);
 
+  /// @brief Destroy the processor and its WebRTC backend.
   virtual ~AecProcessor() = default;
 
 protected:
@@ -197,40 +199,135 @@ protected:
                                  float *processed, int &error_code);
 
 private:
+  /// @brief A timestamped block of mono audio retained in an input FIFO.
   struct TimedBlock {
+    /// @brief Mono float samples buffered at the processing rate.
     std::vector<float> samples;
+    /// @brief Timestamp of @c samples.front() in nanoseconds.
     int64_t stamp_ns = 0;
   };
 
+  /**
+   * @brief Remove and return the next complete microphone frame.
+   *
+   * The caller must ensure that at least frame_size() microphone samples are
+   * buffered. Samples may be taken from more than one TimedBlock.
+   *
+   * @param[out] stamp_ns Capture timestamp of the frame's first sample.
+   * @return Exactly frame_size() microphone samples.
+   */
   std::vector<float> pop_mic_frame(int64_t &stamp_ns);
+
+  /**
+   * @brief Build the reference frame that corresponds to a microphone frame.
+   *
+   * Reference samples are selected by timestamp, not arrival order. Audio
+   * before @p stamp_ns is discarded, while a gap at the start of the frame is
+   * filled with silence, so the returned frame always has frame_size() samples.
+   *
+   * @param stamp_ns Timestamp of the first reference sample to select.
+   * @return Exactly frame_size() reference samples, zero-filled where no
+   *         reference audio is available.
+   */
   std::vector<float> pop_reference_frame(int64_t stamp_ns);
+
+  /**
+   * @brief Decide whether a microphone frame can be processed.
+   *
+   * A frame is ready when its reference timestamp is covered by buffered
+   * reference audio, when the reference has timed out, or when waiting longer
+   * would exceed @c reference_wait_ms.
+   *
+   * @param stamp_ns Reference timestamp required by the microphone frame.
+   * @return True if the frame can be processed now, including with silence.
+   */
   bool reference_ready(int64_t stamp_ns) const;
+
+  /**
+   * @brief End timestamp of the newest buffered reference audio.
+   *
+   * @return Timestamp just past the last reference sample in nanoseconds, or
+   *         the last known reference end when the FIFO is empty.
+   */
   int64_t reference_end_stamp_ns() const;
+
+  /**
+   * @brief Process one microphone/reference frame pair.
+   *
+   * Runs WebRTC AEC, falls back to the microphone frame when WebRTC fails,
+   * sanitizes non-finite output, and appends completed chunks to @p output.
+   *
+   * @param[in,out] output Receives every output chunk completed by this frame.
+   */
   void process_next_frame(std::vector<OutputChunk> &output);
+
+  /**
+   * @brief Bound the microphone FIFO to its configured capacity.
+   *
+   * Drops the oldest microphone blocks, resets the AEC, and records an error
+   * when the FIFO grows beyond one second of audio.
+   */
   void enforce_mic_capacity();
+
+  /**
+   * @brief Bound the reference FIFO to its configured capacity.
+   *
+   * Drops the oldest reference blocks, resets the AEC, and records an error
+   * when the FIFO grows beyond one second of audio.
+   */
   void enforce_reference_capacity();
+
+  /**
+   * @brief Timestamp immediately after the last buffered microphone sample.
+   *
+   * Falls back to the end of pending output when the microphone FIFO is empty.
+   *
+   * @return Timestamp in nanoseconds, or 0 when no timeline is established.
+   */
   int64_t next_mic_stamp() const;
 
+  /// @brief Validated processing configuration supplied at construction.
   AecProcessorConfig config_;
+  /// @brief Number of samples in one 10 ms WebRTC processing frame.
   int frame_size_;
+  /// @brief Microphone delay expressed in processing-rate frames.
   int mic_buffer_frames_;
+  /// @brief Output chunk size expressed in processing-rate frames.
   int output_chunk_frames_;
+  /// @brief Maximum microphone samples retained by @c mic_fifo_.
   std::size_t mic_capacity_frames_;
+  /// @brief Maximum reference samples retained by @c reference_fifo_.
   std::size_t reference_capacity_frames_;
+  /// @brief WebRTC echo canceller that processes frame pairs.
   WebrtcAec aec_;
+  /// @brief Streaming resampler for microphone audio.
   audio_common_dsp::Resampler mic_resampler_;
+  /// @brief Streaming resampler for playback reference audio.
   audio_common_dsp::Resampler reference_resampler_;
+  /// @brief Timestamped microphone audio waiting to be processed.
   std::deque<TimedBlock> mic_fifo_;
+  /// @brief Timestamped reference audio waiting to be matched to microphone
+  /// frames.
   std::deque<TimedBlock> reference_fifo_;
+  /// @brief Total microphone samples currently held in @c mic_fifo_.
   std::size_t mic_available_;
+  /// @brief Total reference samples currently held in @c reference_fifo_.
   std::size_t reference_available_;
+  /// @brief Cleaned samples accumulated for the next output chunk.
   std::vector<float> output_samples_;
+  /// @brief Capture timestamp of @c output_samples_.front(), or -1 when empty.
   int64_t output_stamp_ns_;
+  /// @brief Set when audio was dropped or AEC failed; cleared by clear_error().
   bool had_error_;
+  /// @brief Most recent WebRTC error code; 0 when there has been no failure.
   int last_error_;
+  /// @brief Start timestamp of the most recently received reference block.
   int64_t last_reference_stamp_ns_;
+  /// @brief End timestamp of the most recently received reference block.
   int64_t last_reference_end_stamp_ns_;
+  /// @brief True after a reference timeout until new reference audio arrives.
   bool reference_timed_out_;
+  /// @brief Number of reference-timeout resets since construction.
   uint64_t reference_reset_count_;
 };
 

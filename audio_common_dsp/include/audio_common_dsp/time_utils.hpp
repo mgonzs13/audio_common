@@ -27,15 +27,30 @@
 
 namespace audio_common_dsp {
 
+/// @brief Number of nanoseconds in one second.
 constexpr int64_t kNanosecondsPerSecond = 1000000000LL;
 
-/// @brief Combine seconds and nanoseconds into a signed nanosecond count.
+/**
+ * @brief Combine seconds and nanoseconds into a signed nanosecond count.
+ *
+ * @param seconds Whole seconds.
+ * @param nanoseconds Nanoseconds within the second.
+ * @return Total time in nanoseconds.
+ */
 inline int64_t to_nanoseconds(std::int32_t seconds, std::uint32_t nanoseconds) {
   return static_cast<int64_t>(seconds) * kNanosecondsPerSecond +
          static_cast<int64_t>(nanoseconds);
 }
 
-/// @brief Split a signed nanosecond count into seconds and nanoseconds.
+/**
+ * @brief Split a signed nanosecond count into seconds and nanoseconds.
+ *
+ * Negative inputs are clamped to zero before splitting.
+ *
+ * @param nanoseconds Time in nanoseconds.
+ * @param[out] seconds Whole seconds.
+ * @param[out] nanos Nanoseconds within the second.
+ */
 inline void from_nanoseconds(std::int64_t nanoseconds, std::int32_t &seconds,
                              std::uint32_t &nanos) {
   if (nanoseconds < 0) {

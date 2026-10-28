@@ -68,8 +68,8 @@ public:
 WebrtcAec::Impl::Impl(int sample_rate, bool high_pass, bool noise_suppression,
                       bool agc)
     : sample_rate_(validate_sample_rate(sample_rate)),
-      frame_size_(sample_rate_ / 100), delay_ms_(0), last_error_(0),
-      render_scratch_(static_cast<size_t>(frame_size_), 0.0f) {
+      frame_size_(this->sample_rate_ / 100), delay_ms_(0), last_error_(0),
+      render_scratch_(static_cast<size_t>(this->frame_size_), 0.0f) {
 #ifdef AUDIO_AEC_WEBRTC_NEW_API
   this->apm_.reset(webrtc::AudioProcessingBuilder().Create());
   if (!this->apm_) {

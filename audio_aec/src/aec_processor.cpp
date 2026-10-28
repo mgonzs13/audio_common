@@ -84,15 +84,17 @@ bool AecProcessor::is_supported_rate(int rate) {
 }
 
 AecProcessor::AecProcessor(const AecProcessorConfig &config)
-    : config_(validate_config(config)), frame_size_(config_.rate / 100),
-      mic_buffer_frames_(static_cast<int>(static_cast<int64_t>(config_.rate) *
-                                          config_.mic_buffer_ms / 1000)),
-      output_chunk_frames_(static_cast<int>(static_cast<int64_t>(config_.rate) *
-                                            config_.output_chunk_ms / 1000)),
-      mic_capacity_frames_(static_cast<std::size_t>(config_.rate)),
-      reference_capacity_frames_(static_cast<std::size_t>(config_.rate)),
-      aec_(config_.rate, config_.enable_high_pass,
-           config_.enable_noise_suppression, config_.enable_agc),
+    : config_(validate_config(config)), frame_size_(this->config_.rate / 100),
+      mic_buffer_frames_(
+          static_cast<int>(static_cast<int64_t>(this->config_.rate) *
+                           this->config_.mic_buffer_ms / 1000)),
+      output_chunk_frames_(
+          static_cast<int>(static_cast<int64_t>(this->config_.rate) *
+                           this->config_.output_chunk_ms / 1000)),
+      mic_capacity_frames_(static_cast<std::size_t>(this->config_.rate)),
+      reference_capacity_frames_(static_cast<std::size_t>(this->config_.rate)),
+      aec_(this->config_.rate, this->config_.enable_high_pass,
+           this->config_.enable_noise_suppression, this->config_.enable_agc),
       mic_resampler_(), reference_resampler_(), mic_fifo_(), reference_fifo_(),
       mic_available_(0), reference_available_(0), output_samples_(),
       output_stamp_ns_(-1), had_error_(false), last_error_(0),

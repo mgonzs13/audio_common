@@ -49,9 +49,14 @@ public:
    * @throws std::invalid_argument if @p sample_rate is not supported.
    */
   WebrtcAec(int sample_rate, bool high_pass, bool noise_suppression, bool agc);
+
+  /// @brief Destroy the wrapper and release the WebRTC implementation.
   ~WebrtcAec();
 
+  /// @brief Copy construction is disabled because the wrapper owns a PIMPL.
   WebrtcAec(const WebrtcAec &) = delete;
+
+  /// @brief Copy assignment is disabled because the wrapper owns a PIMPL.
   WebrtcAec &operator=(const WebrtcAec &) = delete;
 
   /// @brief True if @p sample_rate is supported by WebRTC AudioProcessing.
@@ -99,7 +104,10 @@ public:
   int last_error() const;
 
 private:
+  /// @brief Hidden WebRTC AudioProcessing implementation and its state.
   class Impl;
+
+  /// @brief Owned WebRTC implementation; never null after construction.
   std::unique_ptr<Impl> impl_;
 };
 

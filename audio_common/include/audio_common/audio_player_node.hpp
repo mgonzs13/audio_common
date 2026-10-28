@@ -89,30 +89,46 @@ public:
 private:
   /// @brief A block of frames as they were actually sent to the device.
   struct ReferenceBlock {
+    /// @brief Interleaved float samples written to the device.
     std::vector<float> samples;
+    /// @brief Number of audio frames in @c samples, excluding channel
+    /// multiplication.
     size_t frames{0};
+    /// @brief Intended device render time of the first frame.
     builtin_interfaces::msg::Time stamp;
   };
 
+  /// @brief State for one open PortAudio output stream and its AEC tap.
   struct PlaybackStream {
+    /// @brief Open PortAudio output stream; null until successfully opened.
     PaStream *stream{nullptr};
+    /// @brief Actual output sample rate negotiated with the device.
     int output_rate{0};
+    /// @brief Number of interleaved output channels.
     int channels{1};
+    /// @brief Node that owns this stream and receives reference callbacks.
     AudioPlayerNode *owner{nullptr};
+    /// @brief Per-channel resampler for input at a different sample rate.
     audio_common_dsp::MultiChannelResampler resampler;
     /// @brief Timestamp (ns) of the last message written to this stream.
     int64_t last_stamp_ns = 0;
 
-    /// @brief Frames waiting to be pulled by the PortAudio callback.
+    /// @brief Protects @c queue.
     std::mutex queue_mutex;
+    /// @brief Interleaved frames waiting to be pulled by the PortAudio
+    /// callback.
     std::deque<float> queue;
 
+    /// @brief Protects @c reference_queue and synchronizes the worker wait.
+    std::mutex reference_mutex;
+    /// @brief Wakes @c reference_worker when a new block is queued.
+    std::condition_variable reference_cv;
     /// @brief Blocks written to the device, waiting to be published as the
     ///        AEC reference.
-    std::mutex reference_mutex;
-    std::condition_variable reference_cv;
     std::deque<ReferenceBlock> reference_queue;
+    /// @brief Thread that publishes @c reference_queue blocks.
     std::thread reference_worker;
+    /// @brief Signals @c reference_worker to exit.
     std::atomic<bool> stop{false};
   };
 
@@ -168,15 +184,36 @@ private:
                   int channels, int rate, int64_t stamp_ns,
                   const std::string &stream_key);
 
-  /// @brief PortAudio callback: pull frames from the queue, insert silence
-  ///        when empty, and enqueue the exact output for the AEC reference.
+  /**
+   * @brief PortAudio output callback.
+   *
+   * Pulls interleaved frames from the stream queue, fills any underrun with
+   * silence, and queues the exact output block for the AEC reference topic.
+   *
+   * @param input Unused input buffer.
+   * @param[out] output Interleaved float output buffer to fill.
+   * @param frames Number of frames requested by PortAudio.
+   * @param time_info PortAudio timing information used for the reference
+   *        timestamp.
+   * @param status_flags PortAudio status flags (unused).
+   * @param user_data Pointer to the owning PlaybackStream.
+   * @return @c paContinue so PortAudio keeps the stream running.
+   */
   static int playback_callback(const void *input, void *output,
                                unsigned long frames,
                                const PaStreamCallbackTimeInfo *time_info,
                                PaStreamCallbackFlags status_flags,
                                void *user_data);
 
-  /// @brief Publish the blocks emitted by playback_callback().
+  /**
+   * @brief Publish blocks emitted by playback_callback().
+   *
+   * Waits on @c reference_cv, converts each queued block to an AudioStamped
+   * message, and publishes it on the reference topic. Exits when the stream's
+   * @c stop flag is set.
+   *
+   * @param stream Stream whose reference queue should be drained.
+   */
   void reference_loop(PlaybackStream *stream);
 };
 

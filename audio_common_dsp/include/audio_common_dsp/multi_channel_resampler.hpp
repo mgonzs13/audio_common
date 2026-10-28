@@ -67,7 +67,11 @@ public:
   int channels() const;
 
 private:
+  /// @brief One independent resampler per interleaved channel.
   std::vector<Resampler> channel_resamplers_;
+
+  /// @brief Channel count remembered from the last process() call; 0 before
+  /// the first call.
   int channels_ = 0;
 };
 

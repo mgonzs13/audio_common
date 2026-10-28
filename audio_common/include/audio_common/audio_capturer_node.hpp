@@ -83,23 +83,23 @@ private:
   PaStream *stream_ = nullptr;
 
   /// @brief PortAudio sample format (e.g. paInt16, paFloat32).
-  /// Corresponds to the ROS 2 parameter \"format\".
+  /// Corresponds to the ROS 2 parameter "format".
   int format_;
 
   /// @brief Number of input audio channels.
-  /// Corresponds to the ROS 2 parameter \"channels\".
+  /// Corresponds to the ROS 2 parameter "channels".
   int channels_;
 
   /// @brief Sample rate in Hz.
-  /// Corresponds to the ROS 2 parameter \"rate\".
+  /// Corresponds to the ROS 2 parameter "rate".
   int rate_;
 
   /// @brief Number of frames captured per read call.
-  /// Corresponds to the ROS 2 parameter \"chunk\".
+  /// Corresponds to the ROS 2 parameter "chunk".
   int chunk_;
 
   /// @brief TF frame ID used in published message headers.
-  /// Corresponds to the ROS 2 parameter \"frame_id\".
+  /// Corresponds to the ROS 2 parameter "frame_id".
   std::string frame_id_;
 
   /// @brief Publisher for captured audio data.

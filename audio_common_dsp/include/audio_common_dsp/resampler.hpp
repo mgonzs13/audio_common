@@ -38,6 +38,8 @@ namespace audio_common_dsp {
  */
 class Resampler {
 public:
+  /// @brief Construct an idle resampler with no buffered samples or filter
+  /// state.
   Resampler();
 
   /**
@@ -67,25 +69,56 @@ public:
   void reset();
 
 private:
+  /// @brief Second-order IIR low-pass section in transposed direct form II.
   struct Biquad {
+    /// @brief Feed-forward coefficient for the current sample.
     double b0 = 1.0;
+    /// @brief Feed-forward coefficient for the previous input sample.
     double b1 = 0.0;
+    /// @brief Feed-forward coefficient for the input sample two steps back.
     double b2 = 0.0;
+    /// @brief Feedback coefficient for the previous output sample.
     double a1 = 0.0;
+    /// @brief Feedback coefficient for the output sample two steps back.
     double a2 = 0.0;
+    /// @brief Filter state contributed by the previous input sample.
     double z1 = 0.0;
+    /// @brief Filter state contributed by the input sample two steps back.
     double z2 = 0.0;
   };
 
+  /**
+   * @brief Design a low-pass biquad section.
+   *
+   * @param cutoff_hz Cutoff frequency in Hz.
+   * @param sample_rate Sample rate in Hz; must be positive.
+   * @param q Quality factor of the section.
+   * @return Initialized filter with zero state.
+   */
   static Biquad make_lowpass(double cutoff_hz, double sample_rate, double q);
+
+  /**
+   * @brief Apply one biquad section to a sample.
+   *
+   * @param[in,out] filter Filter whose state is advanced.
+   * @param sample Input sample.
+   * @return Filtered sample.
+   */
   static float apply_biquad(Biquad &filter, float sample);
 
+  /// @brief Input samples retained for interpolation and filter continuity.
   std::vector<float> buffer_;
+  /// @brief Fractional read position of the next output sample in @c buffer_.
   double position_;
+  /// @brief Input sample rate of the buffered stream; 0 when unconfigured.
   int input_rate_;
+  /// @brief Output sample rate of the buffered stream; 0 when unconfigured.
   int output_rate_;
+  /// @brief True when the anti-alias low-pass filters are active.
   bool filter_enabled_;
+  /// @brief First biquad section of the anti-alias filter.
   Biquad lowpass1_;
+  /// @brief Second biquad section of the anti-alias filter.
   Biquad lowpass2_;
 };
 
