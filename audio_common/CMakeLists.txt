@@ -34,6 +34,7 @@ install(TARGETS
 # audio_player_node
 add_executable(audio_player_node
   src/audio_common/audio_player_node.cpp
+  src/audio_common/audio_player_reference.cpp
   src/audio_player_main.cpp
 )
 target_link_libraries(audio_player_node
@@ -120,6 +121,14 @@ if(BUILD_TESTING)
   )
   target_include_directories(wave_file_test PRIVATE include)
   target_link_libraries(wave_file_test audio_common_dsp::audio_common_dsp)
+
+  ament_add_gtest(audio_player_reference_test
+    test/audio_player_reference_test.cpp
+    src/audio_common/audio_player_reference.cpp
+  )
+  target_include_directories(audio_player_reference_test PRIVATE include)
+  target_link_libraries(audio_player_reference_test
+    ${audio_common_msgs_TARGETS})
 endif()
 
 ament_export_dependencies(${DEPENDENCIES})

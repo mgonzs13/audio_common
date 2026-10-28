@@ -55,6 +55,14 @@ AecProcessorConfig validate_config(const AecProcessorConfig &config) {
     throw std::invalid_argument(
         "AecProcessor stream_delay_ms must be non-negative");
   }
+  if (config.reference_lead_ms < 0 || config.reference_lead_ms > 500) {
+    throw std::invalid_argument(
+        "AecProcessor reference_lead_ms must be between 0 and 500");
+  }
+  if (config.reference_wait_ms < 0 || config.reference_wait_ms > 1000) {
+    throw std::invalid_argument(
+        "AecProcessor reference_wait_ms must be between 0 and 1000");
+  }
   if (config.reference_timeout_ms <= 0) {
     throw std::invalid_argument(
         "AecProcessor reference_timeout_ms must be positive");
@@ -82,8 +90,8 @@ AecProcessor::AecProcessor(const AecProcessorConfig &config)
       mic_resampler_(), reference_resampler_(), mic_fifo_(), reference_fifo_(),
       mic_available_(0), reference_available_(0), output_samples_(),
       output_stamp_ns_(-1), had_error_(false), last_error_(0),
-      last_reference_stamp_ns_(0), reference_timed_out_(false),
-      reference_reset_count_(0) {}
+      last_reference_stamp_ns_(0), last_reference_end_stamp_ns_(0),
+      reference_timed_out_(false), reference_reset_count_(0) {}
 
 void AecProcessor::push_mic(const std::vector<float> &mono, int input_rate,
                             int64_t stamp_ns) {
@@ -93,6 +101,7 @@ void AecProcessor::push_mic(const std::vector<float> &mono, int input_rate,
               1000000LL) {
     this->reference_fifo_.clear();
     this->reference_available_ = 0;
+    this->last_reference_end_stamp_ns_ = 0;
     this->reference_resampler_.reset();
     this->aec_.reset();
     this->reference_timed_out_ = true;
@@ -118,13 +127,28 @@ void AecProcessor::push_mic(const std::vector<float> &mono, int input_rate,
 
 void AecProcessor::push_reference(const std::vector<float> &mono,
                                   int input_rate, int64_t stamp_ns) {
+  // The reference is ordered by playback time. Drop a stale block rather than
+  // letting an out-of-order arrival corrupt the timestamp mapping.
+  if (this->last_reference_stamp_ns_ != 0 &&
+      stamp_ns < this->last_reference_stamp_ns_) {
+    return;
+  }
+
   std::vector<float> sanitized = mono;
   audio_common_dsp::sanitize_samples(sanitized);
   const std::vector<float> resampled = this->reference_resampler_.process(
       sanitized, input_rate, this->config_.rate);
-  this->reference_fifo_.insert(this->reference_fifo_.end(), resampled.begin(),
-                               resampled.end());
-  this->reference_available_ += resampled.size();
+  if (!resampled.empty()) {
+    TimedBlock block;
+    block.samples = resampled;
+    block.stamp_ns = stamp_ns;
+    this->reference_available_ += block.samples.size();
+    this->last_reference_end_stamp_ns_ =
+        stamp_ns + static_cast<int64_t>(block.samples.size()) *
+                       audio_common_dsp::kNanosecondsPerSecond /
+                       this->config_.rate;
+    this->reference_fifo_.push_back(std::move(block));
+  }
 
   if (stamp_ns > this->last_reference_stamp_ns_) {
     this->last_reference_stamp_ns_ = stamp_ns;
@@ -140,6 +164,15 @@ std::vector<OutputChunk> AecProcessor::pop_output() {
   while (
       this->mic_available_ >=
       static_cast<std::size_t>(this->mic_buffer_frames_ + this->frame_size_)) {
+    // Do not consume the microphone frame until the reference for its
+    // timestamp (plus the configured lead) has arrived. The next reference
+    // callback will retry.
+    const int64_t target =
+        this->mic_fifo_.front().stamp_ns +
+        static_cast<int64_t>(this->config_.reference_lead_ms) * 1000000LL;
+    if (!this->reference_ready(target)) {
+      break;
+    }
     this->process_next_frame(output);
   }
 
@@ -159,10 +192,16 @@ std::vector<OutputChunk> AecProcessor::flush() {
   }
 
   const std::vector<float> reference_tail = this->reference_resampler_.flush();
-  if (!this->reference_timed_out_) {
-    this->reference_fifo_.insert(this->reference_fifo_.end(),
-                                 reference_tail.begin(), reference_tail.end());
-    this->reference_available_ += reference_tail.size();
+  if (!this->reference_timed_out_ && !reference_tail.empty()) {
+    TimedBlock block;
+    block.samples = reference_tail;
+    block.stamp_ns = this->last_reference_end_stamp_ns_;
+    this->reference_available_ += block.samples.size();
+    this->last_reference_end_stamp_ns_ =
+        block.stamp_ns + static_cast<int64_t>(block.samples.size()) *
+                             audio_common_dsp::kNanosecondsPerSecond /
+                             this->config_.rate;
+    this->reference_fifo_.push_back(std::move(block));
   }
 
   while (this->mic_available_ >= static_cast<std::size_t>(this->frame_size_)) {
@@ -192,6 +231,7 @@ void AecProcessor::reset() {
   this->output_stamp_ns_ = -1;
   this->aec_.reset();
   this->last_reference_stamp_ns_ = 0;
+  this->last_reference_end_stamp_ns_ = 0;
   this->reference_timed_out_ = false;
 }
 
@@ -240,28 +280,122 @@ std::vector<float> AecProcessor::pop_mic_frame(int64_t &stamp_ns) {
   return frame;
 }
 
-std::vector<float> AecProcessor::pop_reference_frame() {
+int64_t AecProcessor::reference_end_stamp_ns() const {
+  if (this->reference_fifo_.empty()) {
+    return this->last_reference_end_stamp_ns_;
+  }
+
+  const TimedBlock &block = this->reference_fifo_.back();
+  return block.stamp_ns +
+         static_cast<int64_t>(block.samples.size()) *
+             audio_common_dsp::kNanosecondsPerSecond / this->config_.rate;
+}
+
+bool AecProcessor::reference_ready(int64_t stamp_ns) const {
+  if (this->reference_timed_out_ || this->last_reference_stamp_ns_ == 0) {
+    return true;
+  }
+
+  const int64_t end = this->reference_end_stamp_ns();
+  if (end == 0) {
+    return true;
+  }
+  if (!this->reference_fifo_.empty() &&
+      stamp_ns < this->reference_fifo_.front().stamp_ns) {
+    // The requested time predates the oldest buffered reference. Waiting
+    // cannot recover it; process the gap as silence.
+    return true;
+  }
+  if (stamp_ns < end) {
+    return true;
+  }
+
+  return stamp_ns - end >
+         static_cast<int64_t>(this->config_.reference_wait_ms) * 1000000LL;
+}
+
+std::vector<float> AecProcessor::pop_reference_frame(int64_t stamp_ns) {
   std::vector<float> frame(static_cast<std::size_t>(this->frame_size_), 0.0f);
   if (this->reference_timed_out_) {
     return frame;
   }
 
-  std::size_t filled = 0;
+  const int64_t ns_per_sample =
+      audio_common_dsp::kNanosecondsPerSecond / this->config_.rate;
 
-  while (filled < frame.size() && !this->reference_fifo_.empty()) {
-    frame[filled] = this->reference_fifo_.front();
-    this->reference_fifo_.pop_front();
-    ++filled;
+  // Discard reference audio that is entirely before the requested time, and
+  // trim the leading part of the block that straddles it.
+  while (!this->reference_fifo_.empty()) {
+    TimedBlock &block = this->reference_fifo_.front();
+    const int64_t block_end =
+        block.stamp_ns +
+        static_cast<int64_t>(block.samples.size()) * ns_per_sample;
+
+    if (block_end <= stamp_ns) {
+      this->reference_available_ -= block.samples.size();
+      this->reference_fifo_.pop_front();
+      continue;
+    }
+
+    const int64_t delta = stamp_ns - block.stamp_ns;
+    if (delta <= 0) {
+      break;
+    }
+
+    const std::size_t skip = static_cast<std::size_t>(
+        delta * this->config_.rate / audio_common_dsp::kNanosecondsPerSecond);
+    if (skip >= block.samples.size()) {
+      this->reference_available_ -= block.samples.size();
+      this->reference_fifo_.pop_front();
+      continue;
+    }
+    block.samples.erase(block.samples.begin(), block.samples.begin() + skip);
+    block.stamp_ns += static_cast<int64_t>(skip) * ns_per_sample;
+    this->reference_available_ -= skip;
+    break;
   }
 
-  this->reference_available_ -= filled;
+  if (this->reference_fifo_.empty()) {
+    return frame;
+  }
+
+  std::size_t offset = 0;
+  const int64_t first_start = this->reference_fifo_.front().stamp_ns;
+  if (first_start > stamp_ns) {
+    // The reference begins inside this frame; leave the leading part silent.
+    const int64_t gap =
+        (first_start - stamp_ns) * this->config_.rate /
+        audio_common_dsp::kNanosecondsPerSecond;
+    if (gap >= this->frame_size_) {
+      return frame;
+    }
+    offset = static_cast<std::size_t>(gap);
+  }
+
+  while (offset < frame.size() && !this->reference_fifo_.empty()) {
+    TimedBlock &block = this->reference_fifo_.front();
+    const std::size_t take =
+        std::min(frame.size() - offset, block.samples.size());
+    std::copy(block.samples.begin(), block.samples.begin() + take,
+              frame.begin() + offset);
+    block.samples.erase(block.samples.begin(), block.samples.begin() + take);
+    block.stamp_ns += static_cast<int64_t>(take) * ns_per_sample;
+    this->reference_available_ -= take;
+    offset += take;
+
+    if (block.samples.empty()) {
+      this->reference_fifo_.pop_front();
+    }
+  }
+
   return frame;
 }
 
 bool AecProcessor::process_aec_frame(const float *reference, const float *mic,
                                      float *processed, int &error_code) {
   const size_t frames = static_cast<size_t>(this->frame_size_);
-  this->aec_.set_delay_ms(this->config_.stream_delay_ms);
+  this->aec_.set_delay_ms(this->config_.stream_delay_ms +
+                          this->config_.reference_lead_ms);
 
   int code = 0;
   const bool rendered = this->aec_.process_render(reference, frames);
@@ -284,7 +418,11 @@ bool AecProcessor::process_aec_frame(const float *reference, const float *mic,
 void AecProcessor::process_next_frame(std::vector<OutputChunk> &output) {
   int64_t stamp_ns = 0;
   const std::vector<float> mic_frame = this->pop_mic_frame(stamp_ns);
-  const std::vector<float> reference_frame = this->pop_reference_frame();
+  const int64_t reference_stamp_ns =
+      stamp_ns + static_cast<int64_t>(this->config_.reference_lead_ms) *
+                     1000000LL;
+  const std::vector<float> reference_frame =
+      this->pop_reference_frame(reference_stamp_ns);
 
   std::vector<float> processed(static_cast<std::size_t>(this->frame_size_),
                                0.0f);
@@ -362,12 +500,11 @@ void AecProcessor::enforce_reference_capacity() {
     return;
   }
 
-  const std::size_t excess =
-      this->reference_available_ - this->reference_capacity_frames_;
-  for (std::size_t i = 0; i < excess; ++i) {
+  while (this->reference_available_ > this->reference_capacity_frames_ &&
+         !this->reference_fifo_.empty()) {
+    this->reference_available_ -= this->reference_fifo_.front().samples.size();
     this->reference_fifo_.pop_front();
   }
-  this->reference_available_ -= excess;
 
   this->aec_.reset();
   this->had_error_ = true;

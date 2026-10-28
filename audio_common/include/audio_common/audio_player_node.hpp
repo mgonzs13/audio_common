@@ -23,12 +23,20 @@
 #ifndef AUDIO_COMMON__AUDIO_PLAYER_NODE
 #define AUDIO_COMMON__AUDIO_PLAYER_NODE
 
+#include <atomic>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
+#include <thread>
 #include <unordered_map>
+#include <vector>
+
+#include <builtin_interfaces/msg/time.hpp>
 
 #include "audio_common_dsp/multi_channel_resampler.hpp"
 #include "audio_common_msgs/msg/audio_data.hpp"
@@ -52,9 +60,16 @@ namespace audio_common {
  *              default output sample rate.
  * - `device`   (int, default -1): PortAudio output device index.
  *              -1 selects the system default output device.
+ * - `reference_topic` (string, default "played"): Topic for the actual
+ *              resampled frames written to the device. An empty topic or
+ *              `publish_reference=false` disables it.
+ * - `publish_reference` (bool, default true): Publish the played frames.
  *
  * @par Subscriptions
  * - `audio` (audio_common_msgs/msg/AudioStamped, SensorDataQoS)
+ *
+ * @par Publications
+ * - `played` (audio_common_msgs/msg/AudioStamped, SensorDataQoS) when enabled
  */
 class AudioPlayerNode : public rclcpp::Node {
 public:
@@ -72,17 +87,42 @@ public:
   ~AudioPlayerNode() override;
 
 private:
+  /// @brief A block of frames as they were actually sent to the device.
+  struct ReferenceBlock {
+    std::vector<float> samples;
+    size_t frames{0};
+    builtin_interfaces::msg::Time stamp;
+  };
+
   struct PlaybackStream {
-    PaStream *stream;
-    int output_rate;
+    PaStream *stream{nullptr};
+    int output_rate{0};
+    int channels{1};
+    AudioPlayerNode *owner{nullptr};
     audio_common_dsp::MultiChannelResampler resampler;
     /// @brief Timestamp (ns) of the last message written to this stream.
     int64_t last_stamp_ns = 0;
+
+    /// @brief Frames waiting to be pulled by the PortAudio callback.
+    std::mutex queue_mutex;
+    std::deque<float> queue;
+
+    /// @brief Blocks written to the device, waiting to be published as the
+    ///        AEC reference.
+    std::mutex reference_mutex;
+    std::condition_variable reference_cv;
+    std::deque<ReferenceBlock> reference_queue;
+    std::thread reference_worker;
+    std::atomic<bool> stop{false};
   };
 
   /// @brief ROS 2 subscription for incoming stamped audio messages.
   rclcpp::Subscription<audio_common_msgs::msg::AudioStamped>::SharedPtr
       audio_sub_;
+
+  /// @brief Publisher for the actual output frames written to the device.
+  rclcpp::Publisher<audio_common_msgs::msg::AudioStamped>::SharedPtr
+      reference_pub_;
 
   /**
    * @brief Map from a stream-key string to the corresponding open PortAudio
@@ -91,7 +131,7 @@ private:
    * A new stream is created on demand the first time a particular input/output
    * format combination is encountered.
    */
-  std::unordered_map<std::string, PlaybackStream> stream_dict_;
+  std::unordered_map<std::string, std::unique_ptr<PlaybackStream>> stream_dict_;
 
   /// @brief Number of output audio channels (ROS 2 parameter "channels").
   int channels_;
@@ -127,6 +167,17 @@ private:
   void write_data(const audio_common_msgs::msg::AudioData &data, int format,
                   int channels, int rate, int64_t stamp_ns,
                   const std::string &stream_key);
+
+  /// @brief PortAudio callback: pull frames from the queue, insert silence
+  ///        when empty, and enqueue the exact output for the AEC reference.
+  static int playback_callback(const void *input, void *output,
+                               unsigned long frames,
+                               const PaStreamCallbackTimeInfo *time_info,
+                               PaStreamCallbackFlags status_flags,
+                               void *user_data);
+
+  /// @brief Publish the blocks emitted by playback_callback().
+  void reference_loop(PlaybackStream *stream);
 };
 
 } // namespace audio_common

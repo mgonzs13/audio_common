@@ -55,6 +55,11 @@ namespace audio_aec {
  *   audio arrive first; at most 500.
  * - `output_chunk_ms` (int, default 20): Duration of each output message.
  * - `stream_delay_ms` (int, default 0): Initial WebRTC delay hint.
+ * - `reference_lead_ms` (int, default 0): Deliberate reference lead over the
+ *   microphone timestamp, added to the WebRTC delay hint; at most 500.
+ * - `reference_wait_ms` (int, default 100): How long a microphone frame may
+ *   wait for its timestamped reference before the missing reference is
+ *   treated as silence.
  * - `enable_high_pass` (bool, default true): Enable WebRTC's high-pass filter.
  * - `enable_noise_suppression` (bool, default false): Enable WebRTC noise
  *   suppression.

@@ -89,6 +89,20 @@ void construct_with_mic_buffer(int mic_buffer_ms) {
   audio_aec::AecProcessor processor(config);
 }
 
+void construct_with_reference_lead(int reference_lead_ms) {
+  audio_aec::AecProcessorConfig config;
+  config.rate = 16000;
+  config.reference_lead_ms = reference_lead_ms;
+  audio_aec::AecProcessor processor(config);
+}
+
+void construct_with_reference_wait(int reference_wait_ms) {
+  audio_aec::AecProcessorConfig config;
+  config.rate = 16000;
+  config.reference_wait_ms = reference_wait_ms;
+  audio_aec::AecProcessor processor(config);
+}
+
 /// @brief Deterministic speech-like chirp with a syllabic envelope.
 std::vector<float> speech_like_reference(int rate, double seconds,
                                          double start_hz, double end_hz,
@@ -603,4 +617,59 @@ TEST(AecProcessorTest, ReferenceTimeoutClearsPrefilledFifo) {
   const auto chunks = processor.pop_output();
   ASSERT_EQ(chunks.size(), 1u);
   EXPECT_GT(rms(chunks[0].samples), 0.1);
+}
+
+TEST(AecProcessorTest, RejectsReferenceLeadAndWaitOutOfRange) {
+  EXPECT_THROW(construct_with_reference_lead(-1), std::invalid_argument);
+  EXPECT_THROW(construct_with_reference_lead(501), std::invalid_argument);
+  EXPECT_THROW(construct_with_reference_wait(-1), std::invalid_argument);
+  EXPECT_THROW(construct_with_reference_wait(1001), std::invalid_argument);
+}
+
+TEST(AecProcessorTest, WaitsForLateTimestampedReference) {
+  audio_aec::AecProcessorConfig config;
+  config.rate = 16000;
+  config.mic_buffer_ms = 0;
+  config.output_chunk_ms = 10;
+  config.reference_lead_ms = 0;
+  config.reference_wait_ms = 100;
+  audio_aec::AecProcessor processor(config);
+
+  const auto reference = sine(440.0, 16000, 0.01, 0.3);
+  const auto mic = sine(440.0, 16000, 0.01, 0.5);
+  processor.push_reference(reference, 16000, 1000000000LL);
+  processor.push_mic(mic, 16000, 1020000000LL);
+
+  // The reference ends at 1.01 s, the microphone frame starts at 1.02 s.
+  // The processor must wait instead of silently consuming microphone audio.
+  EXPECT_TRUE(processor.pop_output().empty());
+
+  processor.push_reference(reference, 16000, 1020000000LL);
+  const auto chunks = processor.pop_output();
+  ASSERT_EQ(chunks.size(), 1u);
+  EXPECT_EQ(chunks[0].samples.size(), 160u);
+}
+
+TEST(AecProcessorTest, ReferenceLeadMovesTheTargetTimestamp) {
+  audio_aec::AecProcessorConfig config;
+  config.rate = 16000;
+  config.mic_buffer_ms = 0;
+  config.output_chunk_ms = 10;
+  config.reference_lead_ms = 50;
+  config.reference_wait_ms = 100;
+  audio_aec::AecProcessor processor(config);
+
+  const auto reference = sine(440.0, 16000, 0.01, 0.3);
+  const auto mic = sine(440.0, 16000, 0.01, 0.5);
+  processor.push_reference(reference, 16000, 1000000000LL);
+  processor.push_mic(mic, 16000, 1000000000LL);
+
+  // With a 50 ms lead the first microphone frame targets 1.05 s, which the
+  // 1.00-1.01 s reference block does not cover yet.
+  EXPECT_TRUE(processor.pop_output().empty());
+
+  processor.push_reference(reference, 16000, 1050000000LL);
+  const auto chunks = processor.pop_output();
+  ASSERT_EQ(chunks.size(), 1u);
+  EXPECT_EQ(chunks[0].samples.size(), 160u);
 }

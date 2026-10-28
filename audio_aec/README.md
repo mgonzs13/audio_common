@@ -5,21 +5,26 @@
 `audio_aec` provides `aec_node`, an acoustic echo cancellation (AEC) node for
 ROS 2. The node removes the sound that the robot's own speaker is playing from
 the microphone signal, so the microphone can keep hearing the user during
-playback. It subscribes to a microphone topic and to a reference topic that
-carries the audio message the player is asked to play, and publishes cleaned mono
-audio.
+playback. It subscribes to a microphone topic and to a playback reference,
+ideally the `played` topic from `audio_player_node`, and publishes cleaned
+mono audio.
 
 The motivating use case is text-to-speech: `tts_node` generates speech that
 `audio_player_node` plays through the speaker, and `audio_capturer_node` picks
-that speech up again through the microphone. By feeding the same TTS audio to
-`aec_node` as a reference, the echo is cancelled and downstream speech
-recognition receives mostly the user's voice. The same mechanism works for
+that speech up again through the microphone. The player publishes the exact
+post-resampling, post-channel-conversion frames it writes to the device on
+`/audio/played`; feeding that topic to `aec_node` avoids making the AEC model
+the player's resampling and device buffering. The same mechanism works for
 `music_node` or any other `AudioStamped` source that feeds the speaker.
 
 Echo cancellation is performed by WebRTC AudioProcessing. The node resamples
-both inputs to a fixed internal rate, processes 10 ms frames, and publishes
-mono output in chunks. No existing `audio_common` node needs to be modified;
-the graph is wired with topic remapping.
+both inputs to a fixed internal rate, selects reference frames by their
+playback timestamps instead of FIFO arrival order, processes 10 ms frames, and
+publishes mono output in chunks. The timestamp alignment keeps the AEC delay
+stable when the reference and microphone callbacks jitter; the optional
+reference lead and wait parameters absorb the normal burstiness of the player.
+No existing `audio_common` node needs to be modified; the graph is wired with
+topic remapping.
 
 ## Install
 
@@ -31,8 +36,17 @@ source install/setup.bash
 ```
 
 Ubuntu 20.04 through 24.04 ship WebRTC AudioProcessing 0.3.1, while Ubuntu 25.10
-and later ship 1.3. The package supports both APIs and selects the right one at
-build time.
+and later ship 1.3. The package supports both APIs. It uses 0.3.1 by default
+because its high-suppression mode is the best tested configuration for this
+pipeline, and falls back to 1.3 automatically if 0.3.1 is unavailable. To try
+the AEC3 API when both libraries are installed:
+
+```shell
+colcon build --packages-select audio_aec --cmake-args -DAUDIO_AEC_USE_AEC3=ON
+```
+
+AEC3 is more conservative in double-talk than the 0.3.1 high-suppression mode
+and may leave more residual echo in this application.
 
 ## Topics
 
@@ -63,9 +77,11 @@ adds `mic_buffer_ms` of latency.
 | `output_topic`             | string | `audio_clean`     | Cleaned output topic                                                                       |
 | `rate`                     | int    | `16000`           | Internal processing and output rate; one of 8000, 16000, 32000, 48000                      |
 | `format`                   | int    | `8` (`paInt16`)   | Output PortAudio sample format constant                                                    |
-| `mic_buffer_ms`            | int    | `100`             | Fixed microphone delay used to make sure reference frames are available first; at most 500 |
+| `mic_buffer_ms`            | int    | `100`             | Additional fixed microphone delay/jitter buffer; at most 500                                |
 | `output_chunk_ms`          | int    | `20`              | Duration of each published output message                                                  |
-| `stream_delay_ms`          | int    | `0`               | Initial delay hint passed to WebRTC; the library refines it                                |
+| `stream_delay_ms`          | int    | `0`               | Additional delay hint passed to WebRTC; the effective hint is this plus `reference_lead_ms` |
+| `reference_lead_ms`        | int    | `0`               | Select reference audio this far after the microphone timestamp; at most 500                 |
+| `reference_wait_ms`        | int    | `100`             | How long a microphone frame may wait for its timestamped reference; between 0 and 1000      |
 | `enable_high_pass`         | bool   | `true`            | Enable WebRTC's high-pass filter                                                           |
 | `enable_noise_suppression` | bool   | `false`           | Enable WebRTC noise suppression after AEC                                                  |
 | `enable_agc`               | bool   | `false`           | Enable WebRTC automatic gain control after AEC                                             |
@@ -84,6 +100,8 @@ Validation at startup:
 - `mic_buffer_ms` must be non-negative, a multiple of 10, and at most 500.
 - `output_chunk_ms` must be positive and a multiple of 10.
 - `stream_delay_ms` must be non-negative.
+- `reference_lead_ms` must be between 0 and 500.
+- `reference_wait_ms` must be between 0 and 1000.
 - `reference_timeout_ms` must be positive.
 
 An invalid value makes the node log an error and fail to start, matching the
@@ -167,13 +185,21 @@ pass `--qos-profile sensor_data` (as above) or the subscription may not match.
 
 ## Tuning
 
-- **`mic_buffer_ms`** holds the microphone path back so the corresponding
-  reference audio arrives before the microphone echo is processed. It must be at
-  least the largest expected gap between reference messages. `tts_node`
-  publishes 4096-frame chunks, which is about 186 ms at 22.05 kHz, so the default
-  of 100 ms may be too small on slow systems; increase it (for example to 200)
-  if echo remains at the start of each TTS burst. Larger values add output
-  latency; the maximum is 500 ms.
+- **`reference_lead_ms`** selects reference audio slightly after the
+  microphone timestamp and adds the same amount to the delay hint given to
+  WebRTC. The default of `0` is suitable when the reference is already buffered
+  ahead of the microphone. A small lead such as `50` keeps the delay away from
+  zero, where WebRTC's estimator has coarse resolution, and gives the reference
+  transport some jitter room. The chatbot uses `50`.
+- **`reference_wait_ms`** is how long a microphone frame may wait for its
+  timestamped reference before the missing reference is treated as silence.
+  The default `100` absorbs normal player and ROS jitter. Lower it to reduce
+  output latency when the reference is reliable; raise it on slow systems.
+- **`mic_buffer_ms`** is an additional fixed delay before microphone frames are
+  processed. Timestamp alignment already guarantees that the reference for a
+  frame is selected correctly, so this is now a safety/jitter buffer rather
+  than the mechanism that aligns the streams. Larger values add output latency;
+  the maximum is 500 ms.
 - **`reference_timeout_ms`** controls what happens after playback stops. After
   this long without a reference frame, the node feeds silence to the AEC and
   resets it once, so an old echo path does not leak into the next playback. A
@@ -182,10 +208,13 @@ pass `--qos-profile sensor_data` (as above) or the subscription may not match.
 - **`output_chunk_ms`** trades latency for message rate. Smaller chunks publish
   more often and add less latency.
 - **`stream_delay_ms`** is only an initial hint for WebRTC, which refines the
-  delay itself. Increase it if the speaker has an unusually large device buffer.
-- **`enable_noise_suppression`** and **`enable_agc`** are off by default so the
-  output stays close to the microphone signal apart from echo cancellation.
-  Enable them if the downstream pipeline needs them.
+  delay itself. The effective hint is `stream_delay_ms + reference_lead_ms`.
+  Increase it if the speaker has an unusually large device buffer.
+- **`enable_noise_suppression`** is off by default so the output stays close to
+  the microphone signal apart from echo cancellation. Enable it when a
+  downstream VAD must not fire on the room-noise floor; the chatbot enables it
+  for exactly that reason. **`enable_agc`** remains off unless the downstream
+  pipeline needs level normalization.
 
 The microphone and reference FIFOs are capped at one second. If a publisher runs
 far ahead of real time, the oldest audio is dropped, the processor is reset, and
@@ -193,29 +222,37 @@ a throttled warning is logged instead of allowing unbounded latency.
 
 ## Limitations
 
-- **The reference is captured before the player.** The player's resampling,
-  channel conversion, and device buffering are not part of the reference. AEC
-  adapts to the combined linear path, but the resampling mismatch can leave
-  residual high-frequency echo. This is acceptable for speech and is the cost of
-  not modifying `audio_player_node`.
+- **The reference is the player's output, not the acoustic path.** The AEC
+  still has to model the speaker, room, and microphone. Nonlinear speaker
+  distortion and room reflections can leave residual echo; noise suppression
+  on the output reduces the remaining floor.
 - **Separate devices drift.** A microphone and a speaker on different USB
-  devices have independent clocks. WebRTC tracks small delay changes, but long
-  sessions may need a reset or a larger `mic_buffer_ms`.
+  devices have independent clocks. Timestamp alignment removes ROS transport
+  jitter, but long sessions may still need a reset or a larger
+  `reference_wait_ms`/`mic_buffer_ms`.
 - **16 kHz processing bandwidth at the default rate.** At 16 kHz, cancellation
   is limited to the speech band. This is the right trade-off for speech
   recognition but not for wideband music; raise `rate` to process a wider band.
 - **Reconvergence after playback starts.** The first fraction of a second after
-  playback resumes may contain residual echo while the AEC adapts again.
+  playback resumes may contain residual echo while the AEC adapts again. A
+  small `reference_lead_ms` and a retained filter across turns reduce this
+  transient.
 
 ## Reference requirement
 
-The reference topic must carry the audio message the player is asked to play,
-not an unrelated audio stream. The AEC needs the far-end signal (what the
-speaker plays) to model the echo path; it cannot cancel sound whose source it
+The reference topic must carry the far-end signal (what the speaker plays),
+not an unrelated audio stream. The AEC cannot cancel sound whose source it
 never sees.
 
-In practice, remap both the playback source (`tts_node`, `music_node`, or
-another `AudioStamped` publisher) and `audio_player_node` to the same topic, by
-default `audio_reference`. Playback that bypasses ROS, such as audio played
-directly through ALSA, PulseAudio, or PipeWire outside `audio_common`, provides
-no reference and cannot be cancelled by this node.
+The best reference is the `played` topic published by `audio_player_node`,
+because it contains the exact post-resampling, post-channel-conversion frames
+written to the output device. Point `reference_topic` at that topic (for
+example `/audio/played`) for the best cancellation. The older wiring, where
+both the playback source (`tts_node`, `music_node`, or another
+`AudioStamped` publisher) and `audio_player_node` use `audio_reference`, also
+works, but the player's resampling, buffering, and device latency then become
+part of the echo path the AEC has to model.
+
+Playback that bypasses ROS, such as audio played directly through ALSA,
+PulseAudio, or PipeWire outside `audio_common`, provides no reference and
+cannot be cancelled by this node.

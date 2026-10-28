@@ -57,6 +57,8 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
   this->declare_parameter<int>("mic_buffer_ms", 100);
   this->declare_parameter<int>("output_chunk_ms", 20);
   this->declare_parameter<int>("stream_delay_ms", 0);
+  this->declare_parameter<int>("reference_lead_ms", 0);
+  this->declare_parameter<int>("reference_wait_ms", 100);
   this->declare_parameter<bool>("enable_high_pass", true);
   this->declare_parameter<bool>("enable_noise_suppression", false);
   this->declare_parameter<bool>("enable_agc", false);
@@ -73,6 +75,10 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
   const int mic_buffer_ms = this->get_parameter("mic_buffer_ms").as_int();
   const int output_chunk_ms = this->get_parameter("output_chunk_ms").as_int();
   const int stream_delay_ms = this->get_parameter("stream_delay_ms").as_int();
+  const int reference_lead_ms =
+      this->get_parameter("reference_lead_ms").as_int();
+  const int reference_wait_ms =
+      this->get_parameter("reference_wait_ms").as_int();
   const bool enable_high_pass =
       this->get_parameter("enable_high_pass").as_bool();
   const bool enable_noise_suppression =
@@ -123,6 +129,22 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
     throw std::runtime_error("Invalid parameter 'stream_delay_ms'");
   }
 
+  if (reference_lead_ms < 0 || reference_lead_ms > 500) {
+    RCLCPP_ERROR(this->get_logger(),
+                 "Invalid parameter 'reference_lead_ms': %d (must be between "
+                 "0 and 500)",
+                 reference_lead_ms);
+    throw std::runtime_error("Invalid parameter 'reference_lead_ms'");
+  }
+
+  if (reference_wait_ms < 0 || reference_wait_ms > 1000) {
+    RCLCPP_ERROR(this->get_logger(),
+                 "Invalid parameter 'reference_wait_ms': %d (must be between "
+                 "0 and 1000)",
+                 reference_wait_ms);
+    throw std::runtime_error("Invalid parameter 'reference_wait_ms'");
+  }
+
   if (reference_timeout_ms <= 0) {
     RCLCPP_ERROR(this->get_logger(),
                  "Invalid parameter 'reference_timeout_ms': %d (must be "
@@ -137,6 +159,8 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
   config.mic_buffer_ms = mic_buffer_ms;
   config.output_chunk_ms = output_chunk_ms;
   config.stream_delay_ms = stream_delay_ms;
+  config.reference_lead_ms = reference_lead_ms;
+  config.reference_wait_ms = reference_wait_ms;
   config.enable_high_pass = enable_high_pass;
   config.enable_noise_suppression = enable_noise_suppression;
   config.enable_agc = enable_agc;

@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
@@ -32,6 +33,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "audio_common/audio_player_node.hpp"
+#include "audio_common/audio_player_reference.hpp"
 #include "audio_common_dsp/audio_converter.hpp"
 #include "audio_common_dsp/time_utils.hpp"
 #include "audio_common_msgs/msg/audio.hpp"
@@ -45,11 +47,17 @@ AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
   this->declare_parameter<int>("channels", 2);
   this->declare_parameter<int>("rate", 0);
   this->declare_parameter<int>("device", -1);
+  this->declare_parameter<std::string>("reference_topic", "played");
+  this->declare_parameter<bool>("publish_reference", true);
 
   // Get parameters
   this->channels_ = this->get_parameter("channels").as_int();
   this->rate_ = this->get_parameter("rate").as_int();
   this->device_ = this->get_parameter("device").as_int();
+  const std::string reference_topic =
+      this->get_parameter("reference_topic").as_string();
+  const bool publish_reference =
+      this->get_parameter("publish_reference").as_bool();
 
   if (this->channels_ <= 0) {
     RCLCPP_ERROR(this->get_logger(), "Invalid output channel count: %d",
@@ -72,15 +80,33 @@ AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
           "audio", qos_profile,
           std::bind(&AudioPlayerNode::audio_callback, this, _1));
 
+  // Publication of the exact frames written to the output device.
+  if (publish_reference && !reference_topic.empty()) {
+    this->reference_pub_ =
+        this->create_publisher<audio_common_msgs::msg::AudioStamped>(
+            reference_topic, qos_profile);
+  }
+
   RCLCPP_INFO(this->get_logger(), "AudioPlayer node started");
 }
 
 AudioPlayerNode::~AudioPlayerNode() {
-  // Close all open streams and terminate PortAudio
+  // Stop PortAudio first, then drain and stop the reference publisher.
   for (auto &stream_pair : this->stream_dict_) {
-    Pa_StopStream(stream_pair.second.stream);
-    Pa_CloseStream(stream_pair.second.stream);
+    auto &stream = *stream_pair.second;
+    if (stream.stream != nullptr) {
+      Pa_StopStream(stream.stream);
+    }
+    stream.stop.store(true);
+    stream.reference_cv.notify_all();
+    if (stream.reference_worker.joinable()) {
+      stream.reference_worker.join();
+    }
+    if (stream.stream != nullptr) {
+      Pa_CloseStream(stream.stream);
+    }
   }
+  this->stream_dict_.clear();
   Pa_Terminate();
 }
 
@@ -137,12 +163,14 @@ void AudioPlayerNode::audio_callback(
       return;
     }
 
-    PlaybackStream playback_stream{};
-    playback_stream.stream = nullptr;
-    playback_stream.output_rate = output_rate;
+    auto playback_stream = std::make_unique<PlaybackStream>();
+    playback_stream->output_rate = output_rate;
+    playback_stream->channels = this->channels_;
+    playback_stream->owner = this;
 
-    err = Pa_OpenStream(&playback_stream.stream, nullptr, &outputParameters,
-                        output_rate, 1024, paClipOff, nullptr, nullptr);
+    err = Pa_OpenStream(
+        &playback_stream->stream, nullptr, &outputParameters, output_rate, 4096,
+        paClipOff, &AudioPlayerNode::playback_callback, playback_stream.get());
 
     if (err != paNoError) {
       RCLCPP_ERROR(this->get_logger(), "Failed to open audio stream: %s",
@@ -150,15 +178,17 @@ void AudioPlayerNode::audio_callback(
       return;
     }
 
-    err = Pa_StartStream(playback_stream.stream);
+    err = Pa_StartStream(playback_stream->stream);
     if (err != paNoError) {
       RCLCPP_ERROR(this->get_logger(), "Failed to start audio stream: %s",
                    Pa_GetErrorText(err));
-      Pa_CloseStream(playback_stream.stream);
+      Pa_CloseStream(playback_stream->stream);
       return;
     }
 
-    this->stream_dict_[stream_key] = playback_stream;
+    playback_stream->reference_worker = std::thread(
+        &AudioPlayerNode::reference_loop, this, playback_stream.get());
+    this->stream_dict_[stream_key] = std::move(playback_stream);
   }
 
   // Write audio from ROS 2 msg
@@ -184,6 +214,8 @@ void AudioPlayerNode::write_data(
     return;
   }
 
+  auto &stream = *stream_it->second;
+
   std::vector<float> data;
   try {
     data = audio_common_dsp::AudioConverter::to_float(input_data, format,
@@ -203,68 +235,133 @@ void AudioPlayerNode::write_data(
   const float *write_data = data.data();
   size_t total_frames = input_frames;
   std::vector<float> resampled_data;
+  std::vector<float> tail_data;
 
-  if (rate != stream_it->second.output_rate) {
+  if (rate != stream.output_rate) {
     // Detect a discontinuity (new audio source or a long pause) and flush the
     // retained frame of the previous block so its state does not bleed into
     // the new audio.
     const double expected_gap =
         static_cast<double>(input_frames) / static_cast<double>(rate);
     const bool discontinuity =
-        stream_it->second.last_stamp_ns != 0 && stamp_ns > 0 &&
-        stamp_ns > stream_it->second.last_stamp_ns &&
-        static_cast<double>(stamp_ns - stream_it->second.last_stamp_ns) / 1e9 >
+        stream.last_stamp_ns != 0 && stamp_ns > 0 &&
+        stamp_ns > stream.last_stamp_ns &&
+        static_cast<double>(stamp_ns - stream.last_stamp_ns) / 1e9 >
             std::max(0.5, 2.0 * expected_gap);
 
     if (discontinuity) {
-      const std::vector<float> tail = stream_it->second.resampler.flush();
-      if (!tail.empty()) {
-        PaError err = Pa_WriteStream(stream_it->second.stream, tail.data(),
-                                     tail.size() / this->channels_);
-        if (err != paNoError && err != paOutputUnderflowed) {
-          RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
-                       Pa_GetErrorText(err));
-        }
-      }
+      tail_data = stream.resampler.flush();
     }
 
-    resampled_data = stream_it->second.resampler.process(
-        data, this->channels_, rate, stream_it->second.output_rate);
+    resampled_data = stream.resampler.process(data, this->channels_, rate,
+                                              stream.output_rate);
     write_data = resampled_data.data();
     total_frames = resampled_data.size() / this->channels_;
   }
 
   if (stamp_ns > 0) {
-    stream_it->second.last_stamp_ns = stamp_ns;
+    stream.last_stamp_ns = stamp_ns;
   }
 
-  if (total_frames == 0) {
+  if (total_frames == 0 && tail_data.empty()) {
     return;
   }
 
-  // Write in smaller blocks to reduce underrun risk
-  size_t frames_written = 0;
-  const size_t max_block = 1024;
+  const size_t max_samples =
+      static_cast<size_t>(stream.output_rate) * this->channels_;
 
-  while (frames_written < total_frames) {
-    size_t frames_to_write = std::min(max_block, total_frames - frames_written);
-    PaError err = Pa_WriteStream(stream_it->second.stream,
-                                 write_data + frames_written * this->channels_,
-                                 frames_to_write);
+  std::lock_guard<std::mutex> lock(stream.queue_mutex);
+  if (!tail_data.empty()) {
+    stream.queue.insert(stream.queue.end(), tail_data.begin(), tail_data.end());
+  }
+  if (total_frames > 0) {
+    stream.queue.insert(stream.queue.end(), write_data,
+                        write_data + total_frames * this->channels_);
+  }
 
-    // paOutputUnderflowed only means that the device inserted silence before
-    // this block; the block itself has been consumed, so it must not be
-    // written again.
-    if (err == paOutputUnderflowed) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                           "PortAudio output underflow detected");
+  // Bound latency if the producer runs far ahead of the output device.
+  if (stream.queue.size() > max_samples) {
+    const size_t excess = stream.queue.size() - max_samples;
+    stream.queue.erase(stream.queue.begin(), stream.queue.begin() + excess);
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                         "Audio playback queue overflow; dropping old samples");
+  }
+}
 
-    } else if (err != paNoError) {
-      RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
-                   Pa_GetErrorText(err));
+int AudioPlayerNode::playback_callback(
+    const void *input, void *output, unsigned long frames,
+    const PaStreamCallbackTimeInfo *time_info,
+    PaStreamCallbackFlags status_flags, void *user_data) {
+  (void)input;
+  (void)status_flags;
+
+  auto *stream = static_cast<PlaybackStream *>(user_data);
+  auto *out = static_cast<float *>(output);
+  const size_t channels = static_cast<size_t>(stream->channels);
+  const size_t samples = static_cast<size_t>(frames) * channels;
+
+  std::vector<float> block(samples, 0.0f);
+  {
+    std::lock_guard<std::mutex> lock(stream->queue_mutex);
+    for (size_t i = 0; i < samples; ++i) {
+      if (!stream->queue.empty()) {
+        block[i] = stream->queue.front();
+        stream->queue.pop_front();
+      }
+    }
+  }
+  std::copy(block.begin(), block.end(), out);
+
+  if (stream->owner == nullptr || !stream->owner->reference_pub_) {
+    return paContinue;
+  }
+
+  ReferenceBlock reference;
+  reference.samples = std::move(block);
+  reference.frames = static_cast<size_t>(frames);
+
+  double latency = 0.0;
+  if (time_info != nullptr) {
+    latency = time_info->outputBufferDacTime - time_info->currentTime;
+  }
+  const rclcpp::Time stamp =
+      stream->owner->now() + rclcpp::Duration::from_seconds(latency);
+  const int64_t stamp_ns = stamp.nanoseconds();
+  reference.stamp.sec = static_cast<int32_t>(stamp_ns / 1000000000LL);
+  reference.stamp.nanosec = static_cast<uint32_t>(stamp_ns % 1000000000LL);
+
+  {
+    std::lock_guard<std::mutex> lock(stream->reference_mutex);
+    stream->reference_queue.push_back(std::move(reference));
+    while (stream->reference_queue.size() > 32) {
+      stream->reference_queue.pop_front();
+    }
+  }
+  stream->reference_cv.notify_one();
+  return paContinue;
+}
+
+void AudioPlayerNode::reference_loop(PlaybackStream *stream) {
+  while (!stream->stop.load()) {
+    std::unique_lock<std::mutex> lock(stream->reference_mutex);
+    stream->reference_cv.wait(lock, [&]() {
+      return stream->stop.load() || !stream->reference_queue.empty();
+    });
+    if (stream->stop.load()) {
       break;
     }
 
-    frames_written += frames_to_write;
+    ReferenceBlock block = std::move(stream->reference_queue.front());
+    stream->reference_queue.pop_front();
+    lock.unlock();
+
+    if (!this->reference_pub_ || block.frames == 0) {
+      continue;
+    }
+
+    auto msg = make_reference_message(block.samples.data(), block.frames,
+                                      stream->channels, stream->output_rate,
+                                      block.stamp);
+    this->reference_pub_->publish(msg);
   }
 }

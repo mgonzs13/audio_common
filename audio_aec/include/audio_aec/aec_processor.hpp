@@ -43,6 +43,18 @@ struct AecProcessorConfig {
   int output_chunk_ms = 20;
   /// @brief Initial render-to-capture delay hint passed to WebRTC, in ms.
   int stream_delay_ms = 0;
+  /// @brief Deliberate reference lead over the microphone timestamp, in ms.
+  ///
+  /// Selecting reference audio slightly after the microphone timestamp keeps
+  /// the render-to-capture delay away from zero, where the WebRTC delay
+  /// estimator has poor resolution, and gives transport jitter some room.
+  /// The delay reported to WebRTC is @c stream_delay_ms plus this value.
+  int reference_lead_ms = 0;
+  /// @brief How long a microphone frame may wait for its timestamped
+  /// reference, in ms, before it is processed with silence. A short wait
+  /// absorbs normal transport jitter; a longer gap is treated as missing
+  /// reference audio.
+  int reference_wait_ms = 100;
   /// @brief Enable WebRTC's high-pass filter.
   bool enable_high_pass = true;
   /// @brief Enable WebRTC noise suppression.
@@ -67,8 +79,10 @@ struct OutputChunk {
  * Microphone and reference audio may arrive at any input rate; both are
  * resampled to the configured processing rate. Microphone audio is held for
  * @c mic_buffer_ms so that the matching reference audio is available before
- * processing. Audio is processed in 10 ms frames and returned in chunks of
- * @c output_chunk_ms.
+ * processing. Reference samples are selected by their timestamps rather than
+ * by FIFO arrival order, so transport jitter cannot slowly shift the
+ * reference away from the microphone. Audio is processed in 10 ms frames and
+ * returned in chunks of @c output_chunk_ms.
  *
  * The class is not internally synchronized; callers sharing an instance
  * between threads must provide their own locking.
@@ -103,7 +117,9 @@ public:
    *
    * @param mono Mono float samples in [-1, 1].
    * @param input_rate Sample rate of @p mono in Hz.
-   * @param stamp_ns Capture timestamp of the first sample in @p mono.
+   * @param stamp_ns Playback timestamp of the first sample in @p mono. The
+   *        processor uses this to pair reference samples with microphone
+   *        frames by time, not by arrival order.
    * @throws std::invalid_argument if @p input_rate is not positive.
    */
   void push_reference(const std::vector<float> &mono, int input_rate,
@@ -187,7 +203,9 @@ private:
   };
 
   std::vector<float> pop_mic_frame(int64_t &stamp_ns);
-  std::vector<float> pop_reference_frame();
+  std::vector<float> pop_reference_frame(int64_t stamp_ns);
+  bool reference_ready(int64_t stamp_ns) const;
+  int64_t reference_end_stamp_ns() const;
   void process_next_frame(std::vector<OutputChunk> &output);
   void enforce_mic_capacity();
   void enforce_reference_capacity();
@@ -203,7 +221,7 @@ private:
   audio_common_dsp::Resampler mic_resampler_;
   audio_common_dsp::Resampler reference_resampler_;
   std::deque<TimedBlock> mic_fifo_;
-  std::deque<float> reference_fifo_;
+  std::deque<TimedBlock> reference_fifo_;
   std::size_t mic_available_;
   std::size_t reference_available_;
   std::vector<float> output_samples_;
@@ -211,6 +229,7 @@ private:
   bool had_error_;
   int last_error_;
   int64_t last_reference_stamp_ns_;
+  int64_t last_reference_end_stamp_ns_;
   bool reference_timed_out_;
   uint64_t reference_reset_count_;
 };

@@ -7,7 +7,20 @@ find_package(audio_common_msgs REQUIRED)
 find_package(audio_common_dsp REQUIRED)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing)
+# The 0.3.1 high-suppression AEC is the default because it is the best tested
+# configuration for this pipeline. Systems that only provide the 1.x AEC3 API
+# still build automatically. Set AUDIO_AEC_USE_AEC3=ON to prefer AEC3 when both
+# libraries are installed.
+option(AUDIO_AEC_USE_AEC3 "Prefer WebRTC AudioProcessing 1.x (AEC3)" OFF)
+if(AUDIO_AEC_USE_AEC3)
+  pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing-1)
+  if(WEBRTC_APM_FOUND)
+    set(AUDIO_AEC_WEBRTC_NEW_API TRUE)
+  endif()
+endif()
+if(NOT WEBRTC_APM_FOUND)
+  pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing)
+endif()
 if(NOT WEBRTC_APM_FOUND)
   pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing-1)
   if(WEBRTC_APM_FOUND)
@@ -30,7 +43,12 @@ target_link_libraries(audio_aec_core PUBLIC
   ${audio_common_msgs_TARGETS}
   audio_common_dsp::audio_common_dsp
 )
-target_include_directories(audio_aec_core PRIVATE ${WEBRTC_APM_INCLUDE_DIRS})
+target_include_directories(audio_aec_core PRIVATE
+  ${WEBRTC_APM_INCLUDE_DIRS}
+  # The 1.x pkg-config file points at the WebRTC headers but not at the
+  # bundled Abseil headers, which live one level above them.
+  ${WEBRTC_APM_INCLUDEDIR}
+)
 target_link_libraries(audio_aec_core PUBLIC ${WEBRTC_APM_LINK_LIBRARIES})
 target_compile_options(audio_aec_core PRIVATE ${WEBRTC_APM_CFLAGS_OTHER})
 if(AUDIO_AEC_WEBRTC_NEW_API)
