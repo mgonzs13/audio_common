@@ -190,7 +190,7 @@ Node to remove the speaker's audio from the microphone signal (acoustic echo can
 
 - **audio**: Microphone input topic. Type: `audio_common_msgs/msg/AudioStamped`
 
-- **audio_reference**: Audio message the player is asked to play. Both the playback source and `audio_player_node` must be remapped to this topic. Type: `audio_common_msgs/msg/AudioStamped`
+- **audio_reference**: Playback reference topic. Point it at the player's `played` topic so the AEC receives the exact frames written to the device; the older wiring remaps both the playback source and `audio_player_node` to this topic. Type: `audio_common_msgs/msg/AudioStamped`
 
 - **audio_clean**: Cleaned mono output. Type: `audio_common_msgs/msg/AudioStamped`
 

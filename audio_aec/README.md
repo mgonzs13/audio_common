@@ -70,22 +70,22 @@ adds `mic_buffer_ms` of latency.
 
 ## Parameters
 
-| Name                       | Type   | Default           | Meaning                                                                                    |
-| -------------------------- | ------ | ----------------- | ------------------------------------------------------------------------------------------ |
-| `mic_topic`                | string | `audio`           | Microphone input topic                                                                     |
-| `reference_topic`          | string | `audio_reference` | Playback reference topic                                                                   |
-| `output_topic`             | string | `audio_clean`     | Cleaned output topic                                                                       |
-| `rate`                     | int    | `16000`           | Internal processing and output rate; one of 8000, 16000, 32000, 48000                      |
-| `format`                   | int    | `8` (`paInt16`)   | Output PortAudio sample format constant                                                    |
+| Name                       | Type   | Default           | Meaning                                                                                     |
+| -------------------------- | ------ | ----------------- | ------------------------------------------------------------------------------------------- |
+| `mic_topic`                | string | `audio`           | Microphone input topic                                                                      |
+| `reference_topic`          | string | `audio_reference` | Playback reference topic                                                                    |
+| `output_topic`             | string | `audio_clean`     | Cleaned output topic                                                                        |
+| `rate`                     | int    | `16000`           | Internal processing and output rate; one of 8000, 16000, 32000, 48000                       |
+| `format`                   | int    | `8` (`paInt16`)   | Output PortAudio sample format constant                                                     |
 | `mic_buffer_ms`            | int    | `100`             | Additional fixed microphone delay/jitter buffer; at most 500                                |
-| `output_chunk_ms`          | int    | `20`              | Duration of each published output message                                                  |
+| `output_chunk_ms`          | int    | `20`              | Duration of each published output message                                                   |
 | `stream_delay_ms`          | int    | `0`               | Additional delay hint passed to WebRTC; the effective hint is this plus `reference_lead_ms` |
 | `reference_lead_ms`        | int    | `0`               | Select reference audio this far after the microphone timestamp; at most 500                 |
 | `reference_wait_ms`        | int    | `100`             | How long a microphone frame may wait for its timestamped reference; between 0 and 1000      |
-| `enable_high_pass`         | bool   | `true`            | Enable WebRTC's high-pass filter                                                           |
-| `enable_noise_suppression` | bool   | `false`           | Enable WebRTC noise suppression after AEC                                                  |
-| `enable_agc`               | bool   | `false`           | Enable WebRTC automatic gain control after AEC                                             |
-| `reference_timeout_ms`     | int    | `500`             | After this long without a reference frame, feed silence and reset AEC once                 |
+| `enable_high_pass`         | bool   | `true`            | Enable WebRTC's high-pass filter                                                            |
+| `enable_noise_suppression` | bool   | `false`           | Enable WebRTC noise suppression after AEC                                                   |
+| `enable_agc`               | bool   | `false`           | Enable WebRTC automatic gain control after AEC                                              |
+| `reference_timeout_ms`     | int    | `500`             | After this long without a reference frame, feed silence and reset AEC once                  |
 
 `format` accepts the PortAudio constants `1` (`paFloat32`), `2` (`paInt32`),
 `8` (`paInt16`), `16` (`paInt8`), and `32` (`paUInt8`). The default `paInt16`
@@ -128,23 +128,30 @@ This publishes the microphone on `/audio`.
 ### 2. TTS source
 
 ```shell
-ros2 run audio_common tts_node --ros-args -r audio:=audio_reference
+ros2 run audio_common tts_node --ros-args -r audio:=/audio/out
 ```
+
+`tts_node` publishes on `/audio/out`, so the generated speech does not mix with
+the microphone on `/audio`.
 
 ### 3. Playback
 
 ```shell
-ros2 run audio_common audio_player_node --ros-args -r audio:=audio_reference
+ros2 run audio_common audio_player_node --ros-args \
+  -r audio:=/audio/out -p reference_topic:=/audio/played
 ```
+
+The player publishes the exact post-resampled frames written to the device on
+`/audio/played`; this is the same reference used by the chatbot.
 
 ### 4. AEC node
 
 ```shell
-ros2 run audio_aec aec_node
+ros2 run audio_aec aec_node --ros-args -p reference_topic:=/audio/played
 ```
 
-The defaults are microphone `/audio`, reference `/audio_reference`, and output
-`/audio_clean`.
+The microphone and output keep their defaults, `/audio` and `/audio_clean`; the
+reference is the player's `/audio/played` topic.
 
 ### 5. Monitor the cleaned microphone
 
@@ -173,15 +180,20 @@ Use headphones and a second output device to avoid feedback:
 ```shell
 ros2 run audio_common audio_player_node --ros-args \
   -r __node:=aec_monitor_player -r audio:=audio_clean \
-  -p device:=<output_device_index>
+  -p device:=<output_device_index> -p publish_reference:=false
 ```
 
+The monitor player disables reference publishing so it cannot feed the cleaned
+signal back into the AEC.
+
 `audio_capturer_node` keeps publishing on `audio`, which is `aec_node`'s default
-microphone topic. Both `tts_node` and `audio_player_node` are remapped to
-`audio_reference`, so the AEC node sees the audio message the player is asked to
-play. Speech recognition or any other consumer should subscribe to `audio_clean`.
-`audio_clean` uses `SensorDataQoS`; `ros2 topic echo` defaults to reliable QoS, so
-pass `--qos-profile sensor_data` (as above) or the subscription may not match.
+microphone topic. `tts_node` publishes on `/audio/out` and `audio_player_node`
+plays it; the AEC node uses the player's `/audio/played` output as its
+reference. This mirrors the chatbot wiring: the AEC models the speaker and room,
+not the player's resampling and device buffering. Speech recognition or any
+other consumer should subscribe to `audio_clean`. `audio_clean` uses
+`SensorDataQoS`; `ros2 topic echo` defaults to reliable QoS, so pass
+`--qos-profile sensor_data` (as above) or the subscription may not match.
 
 ## Tuning
 
