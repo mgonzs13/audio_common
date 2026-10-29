@@ -20,37 +20,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef AUDIO_COMMON__SAMPLE_RATE_CONVERTER
-#define AUDIO_COMMON__SAMPLE_RATE_CONVERTER
+#ifndef AUDIO_COMMON__AUDIO_PLAYER_REFERENCE_HPP_
+#define AUDIO_COMMON__AUDIO_PLAYER_REFERENCE_HPP_
 
-#include <vector>
+#include <cstddef>
+
+#include <builtin_interfaces/msg/time.hpp>
+
+#include "audio_common_msgs/msg/audio_stamped.hpp"
 
 namespace audio_common {
 
-class SampleRateConverter {
-public:
-  /**
-   * @brief Convert interleaved audio samples to a different sample rate.
-   *
-   * The converter keeps one frame of look-ahead between calls. Call flush()
-   * after the final input block to retrieve the retained final frame.
-   *
-   * @throws std::invalid_argument if a rate or channel count is not positive,
-   *         or if the input does not contain complete frames.
-   */
-  std::vector<float> convert(const std::vector<float> &input_data, int channels,
-                             int input_rate, int output_rate);
-
-  /**
-   * @brief Return the retained final frame and reset the converter state.
-   */
-  std::vector<float> flush();
-
-private:
-  double position_ = 0.0;
-  std::vector<float> previous_frame_;
-};
+/**
+ * @brief Build the playback-reference message from the frames being written
+ *        to the output device.
+ *
+ * The message contains mono or interleaved float32 samples in the output
+ * format, so an AEC node can use exactly what the player sends to the device
+ * as its far-end reference. The header stamp is supplied by the caller and
+ * can describe the intended render time.
+ *
+ * @param data Interleaved output samples.
+ * @param frames Number of audio frames in @p data.
+ * @param channels Number of output channels.
+ * @param rate Output sample rate in Hz.
+ * @param stamp Header timestamp for the message.
+ * @return AudioStamped message carrying the played frames.
+ */
+audio_common_msgs::msg::AudioStamped
+make_reference_message(const float *data, std::size_t frames, int channels,
+                       int rate, const builtin_interfaces::msg::Time &stamp);
 
 } // namespace audio_common
 
-#endif
+#endif // AUDIO_COMMON__AUDIO_PLAYER_REFERENCE_HPP_

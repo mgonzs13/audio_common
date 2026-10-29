@@ -104,9 +104,17 @@ Node to play the audio data obtained from the `audio` topic.
 
 - **device**: The ID of the audio output device. A value of `-1` indicates that the default audio output device should be used. Default: `-1`
 
+- **reference_topic**: Topic for the exact post-resampled frames written to the output device, for use as an AEC reference. Default: `played`
+
+- **publish_reference**: Publish the played frames on `reference_topic`. Default: `true`
+
+The player uses a continuous PortAudio callback and a playback queue, so the device is kept fed with silence when no audio is queued. The reference topic therefore carries the actual device output, including silence, which is what an AEC needs for the far-end signal.
+
 #### ROS 2 Interfaces
 
 - **audio**: Topic subscriber to get the audio data to be played. Type: `audio_common_msgs/msg/AudioStamped`
+
+- **played**: Topic publisher for the exact frames written to the output device. Type: `audio_common_msgs/msg/AudioStamped` (when `publish_reference` is true)
 
 </details>
 
@@ -168,6 +176,25 @@ Node to generate audio from text (TTS) using espeak.
     - `audio`: The audio being currently played
   - Result:
     - `text`: The text that was converted to speech
+
+</details>
+
+### aec_node
+
+Node to remove the speaker's audio from the microphone signal (acoustic echo cancellation), so a robot can keep listening while `tts_node` or `music_node` is playing. It subscribes to a microphone topic (`audio`) and a playback reference topic (`audio_reference`), and publishes cleaned mono audio on `audio_clean`. Echo cancellation is provided by WebRTC AudioProcessing.
+
+<details>
+<summary>Click to expand</summary>
+
+#### ROS 2 Interfaces
+
+- **audio**: Microphone input topic. Type: `audio_common_msgs/msg/AudioStamped`
+
+- **audio_reference**: Playback reference topic. Point it at the player's `played` topic so the AEC receives the exact frames written to the device; the older wiring remaps both the playback source and `audio_player_node` to this topic. Type: `audio_common_msgs/msg/AudioStamped`
+
+- **audio_clean**: Cleaned mono output. Type: `audio_common_msgs/msg/AudioStamped`
+
+See [audio_aec/README.md](audio_aec/README.md) for the parameters, the TTS echo example, and tuning.
 
 </details>
 

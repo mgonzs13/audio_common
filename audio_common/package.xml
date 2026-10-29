@@ -13,6 +13,7 @@
     <test_depend>ament_cmake_gtest</test_depend>
     <depend>ament_index_cpp</depend>
     <depend>audio_common_msgs</depend>
+    <depend>audio_common_dsp</depend>
     <depend>portaudio19-dev</depend>
     <depend>espeak</depend>
     <export>

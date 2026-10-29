@@ -86,9 +86,9 @@ public:
    * @brief Read up to the next @p size frames from the file into @p buffer.
    *
    * Samples are converted from int16_t to @c float in the range [-1.0, 1.0]
-   * using int16ToFloat().  @p buffer is resized to the number of frames
-   * actually read (which is less than @p size for the final partial block)
-   * times #channels_ elements.
+   * using the shared normalized signed-sample conversion.  @p buffer is resized
+   * to the number of frames actually read (which is less than @p size for the
+   * final partial block) times #channels_ elements.
    *
    * Only 16-bit PCM WAV files are supported.
    *
@@ -135,14 +135,6 @@ private:
 
   /// @brief File offset of the first PCM sample (populated by open()).
   std::streamoff data_offset_;
-
-  /**
-   * @brief Convert a signed 16-bit PCM sample to a normalised float.
-   *
-   * @param sample Raw int16_t PCM value.
-   * @return Floating-point value in the range [-1.0, 1.0].
-   */
-  float int16ToFloat(int16_t sample) { return sample / 32768.0f; }
 };
 
 } // namespace audio_common

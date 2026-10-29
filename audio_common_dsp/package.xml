@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+    <name>audio_common_dsp</name>
+    <version>4.0.11</version>
+    <description>Shared audio DSP utilities for audio_common</description>
+    <maintainer email="mgons@unileon.es">Miguel Ángel González Santamarta</maintainer>
+    <license>MIT</license>
+    <buildtool_depend>ament_cmake</buildtool_depend>
+    <depend>audio_common_msgs</depend>
+    <test_depend>ament_cmake_gtest</test_depend>
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>

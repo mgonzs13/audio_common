@@ -81,11 +81,11 @@ public:
 
 private:
   /// @brief Number of float samples per published audio message.
-  /// Corresponds to the ROS 2 parameter \"chunk\".
+  /// Corresponds to the ROS 2 parameter "chunk".
   int chunk_;
 
   /// @brief TF frame ID used in published message headers.
-  /// Corresponds to the ROS 2 parameter \"frame_id\".
+  /// Corresponds to the ROS 2 parameter "frame_id".
   std::string frame_id_;
 
   /// @brief Publisher that sends synthesised audio chunks to the audio player.

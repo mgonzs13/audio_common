@@ -21,55 +21,43 @@
 // SOFTWARE.
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <builtin_interfaces/msg/time.hpp>
 #include <portaudio.h>
 #include <rclcpp/rclcpp.hpp>
 
 #include "audio_common/audio_player_node.hpp"
+#include "audio_common/audio_player_reference.hpp"
+#include "audio_common_dsp/audio_converter.hpp"
+#include "audio_common_dsp/time_utils.hpp"
 #include "audio_common_msgs/msg/audio.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
 using namespace audio_common;
 using std::placeholders::_1;
 
-namespace {
-
-int64_t stamp_to_nanoseconds(const builtin_interfaces::msg::Time &stamp) {
-  return static_cast<int64_t>(stamp.sec) * 1000000000LL +
-         static_cast<int64_t>(stamp.nanosec);
-}
-
-template <typename T> float sample_to_float(T sample) {
-  return static_cast<float>(sample) /
-         (static_cast<float>(std::numeric_limits<T>::max()) + 1.0f);
-}
-
-template <> float sample_to_float<float>(float sample) { return sample; }
-
-template <> float sample_to_float<uint8_t>(uint8_t sample) {
-  return (static_cast<float>(sample) - 128.0f) / 128.0f;
-}
-
-} // namespace
-
 AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
   // Declare parameters
   this->declare_parameter<int>("channels", 2);
   this->declare_parameter<int>("rate", 0);
   this->declare_parameter<int>("device", -1);
+  this->declare_parameter<std::string>("reference_topic", "played");
+  this->declare_parameter<bool>("publish_reference", true);
 
   // Get parameters
   this->channels_ = this->get_parameter("channels").as_int();
   this->rate_ = this->get_parameter("rate").as_int();
   this->device_ = this->get_parameter("device").as_int();
+  const std::string reference_topic =
+      this->get_parameter("reference_topic").as_string();
+  const bool publish_reference =
+      this->get_parameter("publish_reference").as_bool();
 
   if (this->channels_ <= 0) {
     RCLCPP_ERROR(this->get_logger(), "Invalid output channel count: %d",
@@ -92,15 +80,33 @@ AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
           "audio", qos_profile,
           std::bind(&AudioPlayerNode::audio_callback, this, _1));
 
+  // Publication of the exact frames written to the output device.
+  if (publish_reference && !reference_topic.empty()) {
+    this->reference_pub_ =
+        this->create_publisher<audio_common_msgs::msg::AudioStamped>(
+            reference_topic, qos_profile);
+  }
+
   RCLCPP_INFO(this->get_logger(), "AudioPlayer node started");
 }
 
 AudioPlayerNode::~AudioPlayerNode() {
-  // Close all open streams and terminate PortAudio
+  // Stop PortAudio first, then drain and stop the reference publisher.
   for (auto &stream_pair : this->stream_dict_) {
-    Pa_StopStream(stream_pair.second.stream);
-    Pa_CloseStream(stream_pair.second.stream);
+    auto &stream = *stream_pair.second;
+    if (stream.stream != nullptr) {
+      Pa_StopStream(stream.stream);
+    }
+    stream.stop.store(true);
+    stream.reference_cv.notify_all();
+    if (stream.reference_worker.joinable()) {
+      stream.reference_worker.join();
+    }
+    if (stream.stream != nullptr) {
+      Pa_CloseStream(stream.stream);
+    }
   }
+  this->stream_dict_.clear();
   Pa_Terminate();
 }
 
@@ -157,12 +163,14 @@ void AudioPlayerNode::audio_callback(
       return;
     }
 
-    PlaybackStream playback_stream{};
-    playback_stream.stream = nullptr;
-    playback_stream.output_rate = output_rate;
+    auto playback_stream = std::make_unique<PlaybackStream>();
+    playback_stream->output_rate = output_rate;
+    playback_stream->channels = this->channels_;
+    playback_stream->owner = this;
 
-    err = Pa_OpenStream(&playback_stream.stream, nullptr, &outputParameters,
-                        output_rate, 1024, paClipOff, nullptr, nullptr);
+    err = Pa_OpenStream(
+        &playback_stream->stream, nullptr, &outputParameters, output_rate, 4096,
+        paClipOff, &AudioPlayerNode::playback_callback, playback_stream.get());
 
     if (err != paNoError) {
       RCLCPP_ERROR(this->get_logger(), "Failed to open audio stream: %s",
@@ -170,59 +178,30 @@ void AudioPlayerNode::audio_callback(
       return;
     }
 
-    err = Pa_StartStream(playback_stream.stream);
+    err = Pa_StartStream(playback_stream->stream);
     if (err != paNoError) {
       RCLCPP_ERROR(this->get_logger(), "Failed to start audio stream: %s",
                    Pa_GetErrorText(err));
-      Pa_CloseStream(playback_stream.stream);
+      Pa_CloseStream(playback_stream->stream);
       return;
     }
 
-    this->stream_dict_[stream_key] = playback_stream;
+    playback_stream->reference_worker = std::thread(
+        &AudioPlayerNode::reference_loop, this, playback_stream.get());
+    this->stream_dict_[stream_key] = std::move(playback_stream);
   }
 
   // Write audio from ROS 2 msg
-  switch (msg->audio.info.format) {
-  case paFloat32:
-    this->write_data(msg->audio.audio_data.float32_data,
-                     msg->audio.info.channels, msg->audio.info.rate,
-                     msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paInt32:
-    this->write_data(msg->audio.audio_data.int32_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paInt16:
-    this->write_data(msg->audio.audio_data.int16_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paInt8:
-    this->write_data(msg->audio.audio_data.int8_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-
-  case paUInt8:
-    this->write_data(msg->audio.audio_data.uint8_data, msg->audio.info.channels,
-                     msg->audio.info.rate, msg->audio.info.chunk,
-                     stamp_to_nanoseconds(msg->header.stamp), stream_key);
-    break;
-  default:
-    RCLCPP_ERROR(this->get_logger(), "Unsupported format");
-    return;
-  }
+  this->write_data(msg->audio.audio_data, msg->audio.info.format,
+                   msg->audio.info.channels, msg->audio.info.rate,
+                   audio_common_dsp::to_nanoseconds(msg->header.stamp.sec,
+                                                    msg->header.stamp.nanosec),
+                   stream_key);
 }
 
-template <typename ContainerT>
-void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
-                                 int rate, int chunk, int64_t stamp_ns,
-                                 const std::string &stream_key) {
+void AudioPlayerNode::write_data(
+    const audio_common_msgs::msg::AudioData &input_data, int format,
+    int channels, int rate, int64_t stamp_ns, const std::string &stream_key) {
 
   auto stream_it = this->stream_dict_.find(stream_key);
   if (stream_it == this->stream_dict_.end()) {
@@ -230,118 +209,160 @@ void AudioPlayerNode::write_data(const ContainerT &input_data, int channels,
     return;
   }
 
-  if (channels <= 0 || chunk <= 0) {
+  if (channels <= 0 || rate <= 0) {
     RCLCPP_WARN(this->get_logger(), "Invalid audio data shape");
     return;
   }
 
-  const size_t input_frames = static_cast<size_t>(chunk);
-  const size_t required_input_samples = input_frames * channels;
+  auto &stream = *stream_it->second;
 
-  if (input_data.size() < required_input_samples) {
-    RCLCPP_WARN(this->get_logger(),
-                "Insufficient data (%zu) for requested chunk size (%zu).",
-                input_data.size(), required_input_samples);
+  std::vector<float> data;
+  try {
+    data = audio_common_dsp::AudioConverter::to_float(input_data, format,
+                                                      channels);
+    data = audio_common_dsp::AudioConverter::convert_channels(data, channels,
+                                                              this->channels_);
+  } catch (const std::invalid_argument &e) {
+    RCLCPP_WARN(this->get_logger(), "Dropping audio message: %s", e.what());
     return;
   }
 
-  std::vector<float> data(input_frames * this->channels_);
-
-  // Handle mono-to-stereo or stereo-to-mono conversions if necessary
-  if (channels != this->channels_) {
-    if (channels == 1 && this->channels_ == 2) {
-      // Mono to stereo conversion
-      for (size_t i = 0; i < input_frames; ++i) {
-        const float sample = sample_to_float(input_data[i]);
-        data[2 * i] = sample;
-        data[2 * i + 1] = sample;
-      }
-    } else if (channels == 2 && this->channels_ == 1) {
-      // Stereo to mono conversion
-      for (size_t i = 0; i < input_frames; ++i) {
-        data[i] = (sample_to_float(input_data[2 * i]) +
-                   sample_to_float(input_data[2 * i + 1])) /
-                  2.0f;
-      }
-    } else {
-      RCLCPP_WARN(this->get_logger(),
-                  "Unsupported channel conversion from %d to %d channels.",
-                  channels, this->channels_);
-      return;
-    }
-  } else {
-    // No conversion needed
-    for (size_t i = 0; i < data.size(); ++i) {
-      data[i] = sample_to_float(input_data[i]);
-    }
+  const size_t input_frames = data.size() / this->channels_;
+  if (input_frames == 0) {
+    return;
   }
 
   const float *write_data = data.data();
   size_t total_frames = input_frames;
   std::vector<float> resampled_data;
+  std::vector<float> tail_data;
 
-  if (rate != stream_it->second.output_rate) {
+  if (rate != stream.output_rate) {
     // Detect a discontinuity (new audio source or a long pause) and flush the
     // retained frame of the previous block so its state does not bleed into
     // the new audio.
     const double expected_gap =
         static_cast<double>(input_frames) / static_cast<double>(rate);
     const bool discontinuity =
-        stream_it->second.last_stamp_ns != 0 && stamp_ns > 0 &&
-        stamp_ns > stream_it->second.last_stamp_ns &&
-        static_cast<double>(stamp_ns - stream_it->second.last_stamp_ns) / 1e9 >
+        stream.last_stamp_ns != 0 && stamp_ns > 0 &&
+        stamp_ns > stream.last_stamp_ns &&
+        static_cast<double>(stamp_ns - stream.last_stamp_ns) / 1e9 >
             std::max(0.5, 2.0 * expected_gap);
 
     if (discontinuity) {
-      const std::vector<float> tail =
-          stream_it->second.sample_rate_converter.flush();
-      if (!tail.empty()) {
-        PaError err = Pa_WriteStream(stream_it->second.stream, tail.data(),
-                                     tail.size() / this->channels_);
-        if (err != paNoError && err != paOutputUnderflowed) {
-          RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
-                       Pa_GetErrorText(err));
-        }
-      }
+      tail_data = stream.resampler.flush();
     }
 
-    resampled_data = stream_it->second.sample_rate_converter.convert(
-        data, this->channels_, rate, stream_it->second.output_rate);
+    resampled_data = stream.resampler.process(data, this->channels_, rate,
+                                              stream.output_rate);
     write_data = resampled_data.data();
     total_frames = resampled_data.size() / this->channels_;
   }
 
   if (stamp_ns > 0) {
-    stream_it->second.last_stamp_ns = stamp_ns;
+    stream.last_stamp_ns = stamp_ns;
   }
 
-  if (total_frames == 0) {
+  if (total_frames == 0 && tail_data.empty()) {
     return;
   }
 
-  // Write in smaller blocks to reduce underrun risk
-  size_t frames_written = 0;
-  const size_t max_block = 1024;
+  const size_t max_samples =
+      static_cast<size_t>(stream.output_rate) * this->channels_;
 
-  while (frames_written < total_frames) {
-    size_t frames_to_write = std::min(max_block, total_frames - frames_written);
-    PaError err = Pa_WriteStream(stream_it->second.stream,
-                                 write_data + frames_written * this->channels_,
-                                 frames_to_write);
+  std::lock_guard<std::mutex> lock(stream.queue_mutex);
+  if (!tail_data.empty()) {
+    stream.queue.insert(stream.queue.end(), tail_data.begin(), tail_data.end());
+  }
 
-    // paOutputUnderflowed only means that the device inserted silence before
-    // this block; the block itself has been consumed, so it must not be
-    // written again.
-    if (err == paOutputUnderflowed) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                           "PortAudio output underflow detected");
+  if (total_frames > 0) {
+    stream.queue.insert(stream.queue.end(), write_data,
+                        write_data + total_frames * this->channels_);
+  }
 
-    } else if (err != paNoError) {
-      RCLCPP_ERROR(this->get_logger(), "PortAudio write error: %s",
-                   Pa_GetErrorText(err));
+  // Bound latency if the producer runs far ahead of the output device.
+  if (stream.queue.size() > max_samples) {
+    const size_t excess = stream.queue.size() - max_samples;
+    stream.queue.erase(stream.queue.begin(), stream.queue.begin() + excess);
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                         "Audio playback queue overflow; dropping old samples");
+  }
+}
+
+int AudioPlayerNode::playback_callback(
+    const void *input, void *output, unsigned long frames,
+    const PaStreamCallbackTimeInfo *time_info,
+    PaStreamCallbackFlags status_flags, void *user_data) {
+  (void)input;
+  (void)status_flags;
+
+  auto *stream = static_cast<PlaybackStream *>(user_data);
+  auto *out = static_cast<float *>(output);
+  const size_t channels = static_cast<size_t>(stream->channels);
+  const size_t samples = static_cast<size_t>(frames) * channels;
+
+  std::vector<float> block(samples, 0.0f);
+  {
+    std::lock_guard<std::mutex> lock(stream->queue_mutex);
+    for (size_t i = 0; i < samples; ++i) {
+      if (!stream->queue.empty()) {
+        block[i] = stream->queue.front();
+        stream->queue.pop_front();
+      }
+    }
+  }
+  std::copy(block.begin(), block.end(), out);
+
+  if (stream->owner == nullptr || !stream->owner->reference_pub_) {
+    return paContinue;
+  }
+
+  ReferenceBlock reference;
+  reference.samples = std::move(block);
+  reference.frames = static_cast<size_t>(frames);
+
+  double latency = 0.0;
+  if (time_info != nullptr) {
+    latency = time_info->outputBufferDacTime - time_info->currentTime;
+  }
+  const rclcpp::Time stamp =
+      stream->owner->now() + rclcpp::Duration::from_seconds(latency);
+  const int64_t stamp_ns = stamp.nanoseconds();
+  reference.stamp.sec = static_cast<int32_t>(stamp_ns / 1000000000LL);
+  reference.stamp.nanosec = static_cast<uint32_t>(stamp_ns % 1000000000LL);
+
+  {
+    std::lock_guard<std::mutex> lock(stream->reference_mutex);
+    stream->reference_queue.push_back(std::move(reference));
+    while (stream->reference_queue.size() > 32) {
+      stream->reference_queue.pop_front();
+    }
+  }
+  stream->reference_cv.notify_one();
+  return paContinue;
+}
+
+void AudioPlayerNode::reference_loop(PlaybackStream *stream) {
+  while (!stream->stop.load()) {
+    std::unique_lock<std::mutex> lock(stream->reference_mutex);
+    stream->reference_cv.wait(lock, [&]() {
+      return stream->stop.load() || !stream->reference_queue.empty();
+    });
+    if (stream->stop.load()) {
       break;
     }
 
-    frames_written += frames_to_write;
+    ReferenceBlock block = std::move(stream->reference_queue.front());
+    stream->reference_queue.pop_front();
+    lock.unlock();
+
+    if (!this->reference_pub_ || block.frames == 0) {
+      continue;
+    }
+
+    auto msg = make_reference_message(block.samples.data(), block.frames,
+                                      stream->channels, stream->output_rate,
+                                      block.stamp);
+    this->reference_pub_->publish(msg);
   }
 }

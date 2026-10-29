@@ -8,6 +8,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(audio_common_msgs REQUIRED)
+find_package(audio_common_dsp REQUIRED)
 find_library(PORTAUDIO_LIB portaudio REQUIRED)
 
 include_directories(
@@ -32,12 +33,13 @@ install(TARGETS
 
 # audio_player_node
 add_executable(audio_player_node
-  src/audio_common/sample_rate_converter.cpp
   src/audio_common/audio_player_node.cpp
+  src/audio_common/audio_player_reference.cpp
   src/audio_player_main.cpp
 )
 target_link_libraries(audio_player_node
   ${audio_common_msgs_TARGETS}
+  audio_common_dsp::audio_common_dsp
   ${PORTAUDIO_LIB}
   rclcpp::rclcpp
 )
@@ -55,6 +57,7 @@ add_executable(music_node
 target_link_libraries(music_node
   ament_index_cpp::ament_index_cpp
   ${audio_common_msgs_TARGETS}
+  audio_common_dsp::audio_common_dsp
   ${PORTAUDIO_LIB}
   rclcpp::rclcpp
   ${std_srvs_TARGETS}
@@ -78,6 +81,7 @@ add_executable(tts_node
 )
 target_link_libraries(tts_node
   ${audio_common_msgs_TARGETS}
+  audio_common_dsp::audio_common_dsp
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   ${PORTAUDIO_LIB}
@@ -94,7 +98,7 @@ set(SOURCES
 )
 
 add_library(${LIB} STATIC ${SOURCES})
-target_link_libraries(${LIB} ${DEPENDENCIES})
+target_link_libraries(${LIB} ${DEPENDENCIES} audio_common_dsp::audio_common_dsp)
 
 install(TARGETS ${LIB}
   ARCHIVE DESTINATION lib
@@ -111,20 +115,24 @@ if(BUILD_TESTING)
   find_package(ament_cmake_clang_format REQUIRED)
   ament_clang_format(CONFIG_FILE .clang-format)
 
-  ament_add_gtest(sample_rate_converter_test
-    test/sample_rate_converter_test.cpp
-    src/audio_common/sample_rate_converter.cpp
-  )
-  target_include_directories(sample_rate_converter_test PRIVATE include)
-
   ament_add_gtest(wave_file_test
     test/wave_file_test.cpp
     src/audio_common/wave_file.cpp
   )
   target_include_directories(wave_file_test PRIVATE include)
+  target_link_libraries(wave_file_test audio_common_dsp::audio_common_dsp)
+
+  ament_add_gtest(audio_player_reference_test
+    test/audio_player_reference_test.cpp
+    src/audio_common/audio_player_reference.cpp
+  )
+  target_include_directories(audio_player_reference_test PRIVATE include)
+  target_link_libraries(audio_player_reference_test
+    ${audio_common_msgs_TARGETS})
 endif()
 
 ament_export_dependencies(${DEPENDENCIES})
+ament_export_dependencies(audio_common_dsp)
 ament_export_include_directories(include)
 ament_export_libraries(${LIB})
 
