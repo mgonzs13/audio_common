@@ -35,8 +35,8 @@ if(NOT WEBRTC_APM_FOUND)
 endif()
 
 add_library(audio_aec_core STATIC
-  src/webrtc_aec.cpp
-  src/aec_processor.cpp
+  src/audio_aec/webrtc_aec.cpp
+  src/audio_aec/aec_processor.cpp
 )
 target_include_directories(audio_aec_core PUBLIC include)
 target_link_libraries(audio_aec_core PUBLIC
@@ -56,7 +56,7 @@ if(AUDIO_AEC_WEBRTC_NEW_API)
 endif()
 
 add_executable(aec_node
-  src/aec_node.cpp
+  src/audio_aec/aec_node.cpp
   src/aec_main.cpp
 )
 target_link_libraries(aec_node
