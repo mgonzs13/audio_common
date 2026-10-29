@@ -48,15 +48,12 @@ AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
   this->declare_parameter<int>("channels", 2);
   this->declare_parameter<int>("rate", 0);
   this->declare_parameter<int>("device", -1);
-  this->declare_parameter<std::string>("reference_topic", "played");
   this->declare_parameter<bool>("publish_reference", true);
 
   // Get parameters
   this->channels_ = this->get_parameter("channels").as_int();
   this->rate_ = this->get_parameter("rate").as_int();
   this->device_ = this->get_parameter("device").as_int();
-  const std::string reference_topic =
-      this->get_parameter("reference_topic").as_string();
   const bool publish_reference =
       this->get_parameter("publish_reference").as_bool();
 
@@ -82,10 +79,10 @@ AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
           std::bind(&AudioPlayerNode::audio_callback, this, _1));
 
   // Publication of the exact frames written to the output device.
-  if (publish_reference && !reference_topic.empty()) {
+  if (publish_reference) {
     this->reference_pub_ =
         this->create_publisher<audio_common_msgs::msg::AudioStamped>(
-            reference_topic, qos_profile);
+            "played", qos_profile);
   }
 
   RCLCPP_INFO(this->get_logger(), "AudioPlayer node started");

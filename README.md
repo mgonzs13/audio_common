@@ -104,9 +104,7 @@ Node to play the audio data obtained from the `audio` topic.
 
 - **device**: The ID of the audio output device. A value of `-1` indicates that the default audio output device should be used. Default: `-1`
 
-- **reference_topic**: Topic for the exact post-resampled frames written to the output device, for use as an AEC reference. Default: `played`
-
-- **publish_reference**: Publish the played frames on `reference_topic`. Default: `true`
+- **publish_reference**: Publish the played frames on the `played` topic. Default: `true`
 
 The player uses a continuous PortAudio callback and a playback queue, so the device is kept fed with silence when no audio is queued. The reference topic therefore carries the actual device output, including silence, which is what an AEC needs for the far-end signal.
 
@@ -115,6 +113,8 @@ The player uses a continuous PortAudio callback and a playback queue, so the dev
 - **audio**: Topic subscriber to get the audio data to be played. Type: `audio_common_msgs/msg/AudioStamped`
 
 - **played**: Topic publisher for the exact frames written to the output device. Type: `audio_common_msgs/msg/AudioStamped` (when `publish_reference` is true)
+
+Topic names are fixed defaults; use standard ROS 2 remappings (for example, `-r played:=/audio/played`) to change them.
 
 </details>
 

@@ -60,9 +60,6 @@ namespace audio_common {
  *              default output sample rate.
  * - `device`   (int, default -1): PortAudio output device index.
  *              -1 selects the system default output device.
- * - `reference_topic` (string, default "played"): Topic for the actual
- *              resampled frames written to the device. An empty topic or
- *              `publish_reference=false` disables it.
  * - `publish_reference` (bool, default true): Publish the played frames.
  *
  * @par Subscriptions
@@ -70,6 +67,9 @@ namespace audio_common {
  *
  * @par Publications
  * - `played` (audio_common_msgs/msg/AudioStamped, SensorDataQoS) when enabled
+ *
+ * @note Topic names are fixed defaults and should be changed with ROS 2
+ *       remappings rather than parameters.
  */
 class AudioPlayerNode : public rclcpp::Node {
 public:

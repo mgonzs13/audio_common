@@ -49,9 +49,6 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
     : Node("aec_node", options), format_(audio_common_dsp::kPaInt16),
       last_reference_reset_count_(0) {
   // Declare parameters with default values
-  this->declare_parameter<std::string>("mic_topic", "audio");
-  this->declare_parameter<std::string>("reference_topic", "audio_reference");
-  this->declare_parameter<std::string>("output_topic", "audio_clean");
   this->declare_parameter<int>("rate", 16000);
   this->declare_parameter<int>("format", audio_common_dsp::kPaInt16);
   this->declare_parameter<int>("mic_buffer_ms", 100);
@@ -65,11 +62,6 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
   this->declare_parameter<int>("reference_timeout_ms", 500);
 
   // Get parameters
-  const std::string mic_topic = this->get_parameter("mic_topic").as_string();
-  const std::string reference_topic =
-      this->get_parameter("reference_topic").as_string();
-  const std::string output_topic =
-      this->get_parameter("output_topic").as_string();
   const int rate = this->get_parameter("rate").as_int();
   this->format_ = this->get_parameter("format").as_int();
   const int mic_buffer_ms = this->get_parameter("mic_buffer_ms").as_int();
@@ -176,17 +168,17 @@ AecNode::AecNode(const rclcpp::NodeOptions &options)
   // Create ROS interfaces
   this->mic_sub_ =
       this->create_subscription<audio_common_msgs::msg::AudioStamped>(
-          mic_topic, rclcpp::SensorDataQoS(),
+          "audio", rclcpp::SensorDataQoS(),
           std::bind(&AecNode::mic_callback, this, _1));
 
   this->reference_sub_ =
       this->create_subscription<audio_common_msgs::msg::AudioStamped>(
-          reference_topic, rclcpp::SensorDataQoS(),
+          "audio_reference", rclcpp::SensorDataQoS(),
           std::bind(&AecNode::reference_callback, this, _1));
 
   this->output_pub_ =
       this->create_publisher<audio_common_msgs::msg::AudioStamped>(
-          output_topic, rclcpp::SensorDataQoS());
+          "audio_clean", rclcpp::SensorDataQoS());
 
   RCLCPP_INFO(this->get_logger(), "AEC node started (rate=%d Hz, format=%d)",
               rate, this->format_);

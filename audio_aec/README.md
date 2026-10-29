@@ -56,8 +56,8 @@ and may leave more residual echo in this application.
 | Subscribe | `audio_reference` | `audio_common_msgs/msg/AudioStamped` | `SensorDataQoS` |
 | Publish   | `audio_clean`     | `audio_common_msgs/msg/AudioStamped` | `SensorDataQoS` |
 
-The topic names are parameters, so the graph can be adapted without renaming
-anything.
+The topic names are fixed defaults that can be changed with standard ROS 2
+remappings, for example `-r audio:=/audio/mic -r audio_clean:=/audio/clean`.
 
 Both inputs accept all five PortAudio sample formats supported by
 `audio_common_msgs` (`paFloat32`, `paInt32`, `paInt16`, `paInt8`, and `paUInt8`)
@@ -70,22 +70,19 @@ adds `mic_buffer_ms` of latency.
 
 ## Parameters
 
-| Name                       | Type   | Default           | Meaning                                                                                     |
-| -------------------------- | ------ | ----------------- | ------------------------------------------------------------------------------------------- |
-| `mic_topic`                | string | `audio`           | Microphone input topic                                                                      |
-| `reference_topic`          | string | `audio_reference` | Playback reference topic                                                                    |
-| `output_topic`             | string | `audio_clean`     | Cleaned output topic                                                                        |
-| `rate`                     | int    | `16000`           | Internal processing and output rate; one of 8000, 16000, 32000, 48000                       |
-| `format`                   | int    | `8` (`paInt16`)   | Output PortAudio sample format constant                                                     |
-| `mic_buffer_ms`            | int    | `100`             | Additional fixed microphone delay/jitter buffer; at most 500                                |
-| `output_chunk_ms`          | int    | `20`              | Duration of each published output message                                                   |
-| `stream_delay_ms`          | int    | `0`               | Additional delay hint passed to WebRTC; the effective hint is this plus `reference_lead_ms` |
-| `reference_lead_ms`        | int    | `0`               | Select reference audio this far after the microphone timestamp; at most 500                 |
-| `reference_wait_ms`        | int    | `100`             | How long a microphone frame may wait for its timestamped reference; between 0 and 1000      |
-| `enable_high_pass`         | bool   | `true`            | Enable WebRTC's high-pass filter                                                            |
-| `enable_noise_suppression` | bool   | `false`           | Enable WebRTC noise suppression after AEC                                                   |
-| `enable_agc`               | bool   | `false`           | Enable WebRTC automatic gain control after AEC                                              |
-| `reference_timeout_ms`     | int    | `500`             | After this long without a reference frame, feed silence and reset AEC once                  |
+| Name                       | Type | Default         | Meaning                                                                                     |
+| -------------------------- | ---- | --------------- | ------------------------------------------------------------------------------------------- |
+| `rate`                     | int  | `16000`         | Internal processing and output rate; one of 8000, 16000, 32000, 48000                       |
+| `format`                   | int  | `8` (`paInt16`) | Output PortAudio sample format constant                                                     |
+| `mic_buffer_ms`            | int  | `100`           | Additional fixed microphone delay/jitter buffer; at most 500                                |
+| `output_chunk_ms`          | int  | `20`            | Duration of each published output message                                                   |
+| `stream_delay_ms`          | int  | `0`             | Additional delay hint passed to WebRTC; the effective hint is this plus `reference_lead_ms` |
+| `reference_lead_ms`        | int  | `0`             | Select reference audio this far after the microphone timestamp; at most 500                 |
+| `reference_wait_ms`        | int  | `100`           | How long a microphone frame may wait for its timestamped reference; between 0 and 1000      |
+| `enable_high_pass`         | bool | `true`          | Enable WebRTC's high-pass filter                                                            |
+| `enable_noise_suppression` | bool | `false`         | Enable WebRTC noise suppression after AEC                                                   |
+| `enable_agc`               | bool | `false`         | Enable WebRTC automatic gain control after AEC                                              |
+| `reference_timeout_ms`     | int  | `500`           | After this long without a reference frame, feed silence and reset AEC once                  |
 
 `format` accepts the PortAudio constants `1` (`paFloat32`), `2` (`paInt32`),
 `8` (`paInt16`), `16` (`paInt8`), and `32` (`paUInt8`). The default `paInt16`
@@ -138,7 +135,7 @@ the microphone on `/audio`.
 
 ```shell
 ros2 run audio_common audio_player_node --ros-args \
-  -r audio:=/audio/out -p reference_topic:=/audio/played
+  -r audio:=/audio/out -r played:=/audio/played
 ```
 
 The player publishes the exact post-resampled frames written to the device on
@@ -147,7 +144,7 @@ The player publishes the exact post-resampled frames written to the device on
 ### 4. AEC node
 
 ```shell
-ros2 run audio_aec aec_node --ros-args -p reference_topic:=/audio/played
+ros2 run audio_aec aec_node --ros-args -r audio_reference:=/audio/played
 ```
 
 The microphone and output keep their defaults, `/audio` and `/audio_clean`; the
@@ -258,7 +255,7 @@ never sees.
 
 The best reference is the `played` topic published by `audio_player_node`,
 because it contains the exact post-resampling, post-channel-conversion frames
-written to the output device. Point `reference_topic` at that topic (for
+written to the output device. Remap `audio_reference` to that topic (for
 example `/audio/played`) for the best cancellation. The older wiring, where
 both the playback source (`tts_node`, `music_node`, or another
 `AudioStamped` publisher) and `audio_player_node` use `audio_reference`, also

@@ -45,10 +45,6 @@ namespace audio_aec {
  * message's frame ID and the capture stamp of the chunk's first sample.
  *
  * @par ROS 2 Parameters
- * - `mic_topic` (string, default "audio"): Microphone input topic.
- * - `reference_topic` (string, default "audio_reference"): Playback reference
- *   topic.
- * - `output_topic` (string, default "audio_clean"): Cleaned output topic.
  * - `rate` (int, default 16000): Internal processing and output rate in Hz.
  * - `format` (int, default 8): PortAudio sample format constant for output.
  * - `mic_buffer_ms` (int, default 100): Microphone delay that lets reference
@@ -73,6 +69,9 @@ namespace audio_aec {
  *
  * @par Publications
  * - `audio_clean` (audio_common_msgs/msg/AudioStamped, SensorDataQoS)
+ *
+ * @note Topic names are fixed defaults and should be changed with ROS 2
+ *       remappings rather than parameters.
  */
 class AecNode : public rclcpp::Node {
 public:
