@@ -9,6 +9,7 @@ COPY . /root/ros2_ws/src
 
 # Install dependencies
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash
+RUN rosdep update
 RUN rosdep install --from-paths src --ignore-src -r -y
 
 # Colcon the ws
