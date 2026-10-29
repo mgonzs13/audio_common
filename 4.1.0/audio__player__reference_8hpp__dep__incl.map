@@ -1,0 +1,9 @@
+<map id="audio_common/include/audio_common/audio_player_reference.hpp" name="audio_common/include/audio_common/audio_player_reference.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="268,5,457,61"/>
+<area shape="rect" id="Node000002" href="$audio__player__node_8cpp.html" title=" " alt="" coords="5,109,219,150"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="277,69,165,111,164,106,275,64"/>
+<area shape="rect" id="Node000003" href="$audio__player__reference_8cpp.html" title=" " alt="" coords="243,109,482,150"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="365,77,365,109,360,109,360,77"/>
+<area shape="rect" id="Node000004" href="$audio__player__reference__test_8cpp.html" title=" " alt="" coords="506,109,683,150"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="445,65,547,106,545,111,443,70"/>
+</map>
