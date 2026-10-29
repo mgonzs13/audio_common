@@ -29,7 +29,7 @@
 #include "audio_common/audio_capturer_node.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
-using namespace audio_common;
+namespace audio_common {
 
 AudioCapturerNode::AudioCapturerNode() : Node("audio_capturer_node") {
 
@@ -176,3 +176,5 @@ template <typename T> bool AudioCapturerNode::read_data(std::vector<T> &data) {
 
   return true;
 }
+
+} // namespace audio_common

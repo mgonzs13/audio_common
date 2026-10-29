@@ -40,7 +40,8 @@
 #include "audio_common_msgs/action/tts.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
-using namespace audio_common;
+namespace audio_common {
+
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -252,3 +253,5 @@ void TtsNode::execute_callback(
   result->text = text;
   goal_handle->succeed(result);
 }
+
+} // namespace audio_common

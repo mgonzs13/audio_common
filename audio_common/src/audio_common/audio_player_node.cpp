@@ -39,7 +39,8 @@
 #include "audio_common_msgs/msg/audio.hpp"
 #include "audio_common_msgs/msg/audio_stamped.hpp"
 
-using namespace audio_common;
+namespace audio_common {
+
 using std::placeholders::_1;
 
 AudioPlayerNode::AudioPlayerNode() : Node("audio_player_node") {
@@ -366,3 +367,5 @@ void AudioPlayerNode::reference_loop(PlaybackStream *stream) {
     this->reference_pub_->publish(msg);
   }
 }
+
+} // namespace audio_common

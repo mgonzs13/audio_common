@@ -27,7 +27,7 @@
 #include "audio_common/wave_file.hpp"
 #include "audio_common_dsp/sample_format.hpp"
 
-using namespace audio_common;
+namespace audio_common {
 
 namespace {
 
@@ -178,3 +178,5 @@ bool WaveFile::read(std::vector<float> &buffer, size_t size) {
 
   return true;
 }
+
+} // namespace audio_common

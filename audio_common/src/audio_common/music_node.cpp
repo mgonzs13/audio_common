@@ -48,7 +48,8 @@
 #include "audio_common/music_node.hpp"
 #include "audio_common/wave_file.hpp"
 
-using namespace audio_common;
+namespace audio_common {
+
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -250,3 +251,5 @@ void MusicNode::stop_callback(
     response->success = false;
   }
 }
+
+} // namespace audio_common
