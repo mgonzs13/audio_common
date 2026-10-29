@@ -12,19 +12,24 @@ find_package(PkgConfig REQUIRED)
 # still build automatically. Set AUDIO_AEC_USE_AEC3=ON to prefer AEC3 when both
 # libraries are installed.
 option(AUDIO_AEC_USE_AEC3 "Prefer WebRTC AudioProcessing 1.x (AEC3)" OFF)
+
+# pkg_check_modules must run on every configure: FindPkgConfig does not cache
+# WEBRTC_APM_LINK_LIBRARIES, so guarding these calls with `if(NOT ..._FOUND)`
+# leaves the link line empty when reconfiguring an existing build directory.
 if(AUDIO_AEC_USE_AEC3)
   pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing-1)
   if(WEBRTC_APM_FOUND)
     set(AUDIO_AEC_WEBRTC_NEW_API TRUE)
+  else()
+    pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing)
   endif()
-endif()
-if(NOT WEBRTC_APM_FOUND)
+else()
   pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing)
-endif()
-if(NOT WEBRTC_APM_FOUND)
-  pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing-1)
-  if(WEBRTC_APM_FOUND)
-    set(AUDIO_AEC_WEBRTC_NEW_API TRUE)
+  if(NOT WEBRTC_APM_FOUND)
+    pkg_check_modules(WEBRTC_APM QUIET webrtc-audio-processing-1)
+    if(WEBRTC_APM_FOUND)
+      set(AUDIO_AEC_WEBRTC_NEW_API TRUE)
+    endif()
   endif()
 endif()
 if(NOT WEBRTC_APM_FOUND)
